@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Gambar peta OpenStreetMap dan font Google diunduh dari internet. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="yukbadmin"
         android:name="${applicationName}"

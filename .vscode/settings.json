@@ -1,0 +1,8 @@
+{
+  // Ekstensi Java (Red Hat) tidak dibutuhkan untuk project Flutter. Kalau
+  // dibiarkan, ia ikut menjalankan Gradle di folder android dan berebut kunci
+  // build dengan `flutter run`.
+  "java.import.gradle.enabled": false,
+  "java.import.maven.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled"
+}
