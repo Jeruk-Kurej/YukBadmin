@@ -19,6 +19,11 @@ Proyek mata kuliah DEPD, Universitas Ciputra, oleh Team OHEB.
 - Supabase (database, autentikasi, storage)
 - Google sign-in
 
+## Status dan cara melanjutkan
+
+- Status, keputusan produk, dan langkah berikutnya: [docs/PROGRESS.md](docs/PROGRESS.md)
+- Prompt siap tempel untuk melanjutkan dengan Claude Code: [docs/PROMPT_LANJUTAN.md](docs/PROMPT_LANJUTAN.md)
+
 ## Menjalankan project
 
 ```bash
