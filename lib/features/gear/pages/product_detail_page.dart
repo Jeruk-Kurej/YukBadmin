@@ -8,7 +8,6 @@ import '../../manage/data/manage_models.dart' show displayWhatsapp;
 import '../../manage/pages/manage_widgets.dart';
 import '../data/gear_models.dart';
 import '../state/gear_providers.dart';
-import 'gear_feed_page.dart' show stockTag;
 import '../../../core/widgets/covers.dart';
 
 /// Tampilan saat produk atau toko yang dibuka sudah tidak ada.
@@ -50,29 +49,15 @@ class ShopTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return YbCard(
-      onTap: () => context.push('/toko/${shop.id}'),
-      child: Row(
-        children: [
-          YbAvatar(shop.initials, accent: true, photoPath: shop.logoPath),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(shop.name, style: YbText.display(size: 16)),
-                Text(
-                  shop.address,
-                  style: YbText.label(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, color: YbColors.muted),
-        ],
-      ),
+    return YbGroup(
+      children: [
+        YbListRow(
+          leading: YbAvatar(shop.initials, size: 40, photoPath: shop.logoPath),
+          title: shop.name,
+          subtitle: shop.address,
+          onTap: () => context.push('/toko/${shop.id}'),
+        ),
+      ],
     );
   }
 }
@@ -113,91 +98,116 @@ class ProductDetailPage extends ConsumerWidget {
     final shop = ref.watch(shopByIdProvider(product.shopId)).value;
     final spec = product.racket;
 
+    final top = MediaQuery.viewPaddingOf(context).top;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            const PageHeader(title: 'Detail produk'),
-            const SizedBox(height: 14),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(YbRadius.md),
-              child: AspectRatio(
-                aspectRatio: 1.4,
-                child: ProductImage(product: product),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(product.name, style: YbText.display(size: 24)),
-            const SizedBox(height: 4),
-            Text(
-              formatRupiah(product.price),
-              style: YbText.body(
-                size: 20,
-                color: YbColors.primary,
-                weight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+      body: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          SizedBox(
+            height: 300 + top,
+            child: Stack(
               children: [
-                stockTag(product.inStock),
-                YbTag(product.category.label, tone: YbTagTone.neutral),
+                Positioned.fill(
+                  child: Semantics(
+                    label: 'Foto ${product.name}',
+                    image: true,
+                    child: ProductImage(product: product),
+                  ),
+                ),
+                Positioned(left: 16, top: top + 8, child: const YbBackButton()),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              product.description,
-              style: YbText.body(color: YbColors.muted, height: 1.5),
-            ),
-            if (spec != null ||
-                product.shoeSizes.isNotEmpty ||
-                product.stringType != null) ...[
-              const SizedBox(height: 18),
-              Text('Spesifikasi', style: YbText.display(size: 17)),
-              const SizedBox(height: 8),
-              YbCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 4,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _StockPill(inStock: product.inStock),
                 ),
-                child: Column(
-                  children: [
-                    if (spec != null) ...[
-                      _SpecRow(
-                        'Berat',
-                        '${spec.weight.label} (${spec.weight.grams})',
+                const SizedBox(height: 10),
+                Semantics(
+                  header: true,
+                  child: Text(product.name, style: YbText.display(size: 28)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  formatRupiah(product.price),
+                  style: YbText.display(size: 26, color: YbColors.primary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product.category.label,
+                  style: YbText.body(size: 13, color: YbColors.muted),
+                ),
+                const SizedBox(height: 12),
+                Text(product.description, style: YbText.body(height: 1.5)),
+                if (spec != null ||
+                    product.shoeSizes.isNotEmpty ||
+                    product.stringType != null) ...[
+                  const SizedBox(height: 24),
+                  YbSectionTitle('Spesifikasi'),
+                  const SizedBox(height: 10),
+                  YbCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    child: Column(
+                      children: [
+                        if (spec != null) ...[
+                          _SpecRow(
+                            'Berat',
+                            '${spec.weight.label} (${spec.weight.grams})',
+                          ),
+                          _SpecRow('Titik berat', spec.balance.label),
+                          _SpecRow('Batang', spec.flex.label, last: true),
+                        ],
+                        if (product.shoeSizes.isNotEmpty)
+                          _SpecRow(
+                            'Ukuran tersedia',
+                            'EU ${product.shoeSizes.join(', ')}',
+                            last: true,
+                          ),
+                        if (product.stringType != null)
+                          _SpecRow(
+                            'Jenis senar',
+                            product.stringType!.label,
+                            last: true,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (shop != null) ...[
+                  const SizedBox(height: 24),
+                  YbSectionTitle('Dijual oleh'),
+                  const SizedBox(height: 10),
+                  ShopTile(shop: shop),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 16,
+                        color: YbColors.muted,
                       ),
-                      _SpecRow('Titik berat', spec.balance.label),
-                      _SpecRow('Batang', spec.flex.label, last: true),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Beli dan cek stok lewat WhatsApp toko.',
+                          style: YbText.body(size: 13, color: YbColors.muted),
+                        ),
+                      ),
                     ],
-                    if (product.shoeSizes.isNotEmpty)
-                      _SpecRow(
-                        'Ukuran tersedia',
-                        'EU ${product.shoeSizes.join(', ')}',
-                        last: true,
-                      ),
-                    if (product.stringType != null)
-                      _SpecRow(
-                        'Jenis senar',
-                        product.stringType!.label,
-                        last: true,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            if (shop != null) ...[
-              const SizedBox(height: 18),
-              Text('Dijual oleh', style: YbText.display(size: 17)),
-              const SizedBox(height: 8),
-              ShopTile(shop: shop),
-            ],
-          ],
-        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: shop == null
           ? null
@@ -215,7 +225,7 @@ class ProductDetailPage extends ConsumerWidget {
                     icon: const Icon(Icons.chat_bubble_outline, size: 20),
                     label: Text(
                       product.inStock
-                          ? 'Tanya toko lewat WhatsApp'
+                          ? 'Tanya stok via WhatsApp'
                           : 'Tanya kapan ada lagi',
                     ),
                   ),
@@ -250,6 +260,43 @@ class _SpecRow extends StatelessWidget {
               value,
               textAlign: TextAlign.end,
               style: YbText.body(weight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Label stok. Disebut "menurut toko" karena stok diisi toko sendiri dan
+/// bisa terlambat diperbarui.
+class _StockPill extends StatelessWidget {
+  const _StockPill({required this.inStock});
+
+  final bool inStock;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = inStock ? YbColors.success : YbColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: inStock ? YbColors.successSoft : YbColors.warningSoft,
+        borderRadius: BorderRadius.circular(YbRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              inStock ? 'Tersedia menurut toko' : 'Habis menurut toko',
+              style: YbText.body(size: 13, weight: FontWeight.w600, color: fg),
             ),
           ),
         ],
