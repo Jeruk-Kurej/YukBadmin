@@ -490,9 +490,6 @@ class MemberPreviewPage extends ConsumerWidget {
                 onRsvp: (eventId, r) => notifier.setRsvp(eventId, member.id, r),
                 onProof: (eventId, path) =>
                     notifier.submitProof(eventId, member.id, path),
-                onRefundRequest: (eventId, reason) =>
-                    notifier.requestRefund(eventId, member.id, reason),
-                system: state.duesSystem,
               ),
             ],
           ],

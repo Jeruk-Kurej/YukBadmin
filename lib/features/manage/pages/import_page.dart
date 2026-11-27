@@ -9,7 +9,7 @@ import '../data/manage_models.dart';
 import '../state/manage_providers.dart';
 import 'manage_widgets.dart';
 
-enum _Source { chat, foto }
+enum _Source { chat, foto, poster }
 
 /// K11–K13 Impor catatan: tempel catatan, baca, lalu periksa sebelum disimpan.
 /// Tidak ada yang tersimpan sebelum pengurus menekan "Simpan ke PB".
@@ -69,71 +69,70 @@ class _ImportPageState extends ConsumerState<ImportPage> {
 
   Future<void> _editRow(int index) async {
     final row = _rows![index];
+    final controller = TextEditingController(text: row.name);
     var type = row.type;
     final result = await showModalBottomSheet<ImportRow>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => TextControllerScope(
-        initialText: row.name,
-        builder: (_, controller) => StatefulBuilder(
-          builder: (context, setSheet) => SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                12 + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Perbaiki baris', style: YbText.display(size: 20)),
-                  const SizedBox(height: 6),
-                  Text('Catatan asli: ${row.source}', style: YbText.label()),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Nama member'),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final t in MemberType.values)
-                        YbChoiceChip(
-                          label: t == MemberType.tetap ? 'Tetap' : 'Insidental',
-                          selected: type == t,
-                          onTap: () => setSheet(() => type = t),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () {
-                      final name = controller.text.trim();
-                      if (name.length < 2) return;
-                      Navigator.of(context).pop(
-                        row.copyWith(
-                          name: name,
-                          type: type,
-                          needsReview: false,
-                          clearReason: true,
-                        ),
-                      );
-                    },
-                    child: const Text('Pakai nama ini'),
-                  ),
-                ],
-              ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              12 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Perbaiki baris', style: YbText.display(size: 20)),
+                const SizedBox(height: 6),
+                Text('Catatan asli: ${row.source}', style: YbText.label()),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Nama member'),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final t in MemberType.values)
+                      YbChoiceChip(
+                        label: t == MemberType.tetap ? 'Tetap' : 'Insidental',
+                        selected: type == t,
+                        onTap: () => setSheet(() => type = t),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    final name = controller.text.trim();
+                    if (name.length < 2) return;
+                    Navigator.of(context).pop(
+                      row.copyWith(
+                        name: name,
+                        type: type,
+                        needsReview: false,
+                        clearReason: true,
+                      ),
+                    );
+                  },
+                  child: const Text('Pakai nama ini'),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
+    controller.dispose();
     if (result != null) setState(() => _rows![index] = result);
   }
 
@@ -173,58 +172,45 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: YbBackButton(),
-              ),
+              const PageHeader(title: 'Impor catatan'),
               const SizedBox(height: 16),
-              const YbPageTitle(
-                'Impor catatan',
-                subtitle: 'Pindahkan daftar member lama.',
-              ),
-              const SizedBox(height: 16),
-              YbSegmented<_Source>(
-                options: const [
-                  (_Source.chat, 'Chat atau teks', Icons.chat_bubble_outline),
-                  (_Source.foto, 'Foto (segera)', Icons.photo_camera_outlined),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  YbChoiceChip(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'Chat atau teks',
+                    selected: _source == _Source.chat,
+                    onTap: () => setState(() => _source = _Source.chat),
+                  ),
+                  YbChoiceChip(
+                    icon: Icons.photo_camera_outlined,
+                    label: 'Foto catatan',
+                    selected: _source == _Source.foto,
+                    onTap: () => setState(() => _source = _Source.foto),
+                  ),
+                  YbChoiceChip(
+                    label: 'Poster',
+                    selected: _source == _Source.poster,
+                    onTap: () => setState(() => _source = _Source.poster),
+                  ),
                 ],
-                selected: _source,
-                onChanged: (v) => setState(() => _source = v),
               ),
-              const SizedBox(height: 8),
-              _Note(
-                icon: Icons.info_outline_rounded,
-                text: 'Baca foto segera hadir. Tempel teks dulu.',
-              ),
-              const SizedBox(height: 16),
-              if (_source == _Source.foto)
+              const SizedBox(height: 14),
+              if (_source != _Source.chat)
                 YbEmptyState(
                   icon: Icons.auto_awesome_outlined,
-                  title: 'Baca foto catatan belum tersedia',
+                  title: _source == _Source.foto
+                      ? 'Baca foto catatan belum tersedia'
+                      : 'Baca poster belum tersedia',
                   message: 'Fitur ini butuh layanan AI yang belum tersambung. Untuk sekarang, ketik atau tempel isinya lewat "Chat atau teks".',
                   actionLabel: 'Pakai chat atau teks',
                   onAction: () => setState(() => _source = _Source.chat),
                 )
               else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Daftar member',
-                        style: YbText.body(size: 14, color: YbColors.muted),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _text.text = _example;
-                        _inputError = null;
-                      }),
-                      child: const Text('Isi dengan contoh'),
-                    ),
-                  ],
-                ),
                 TextField(
                   controller: _text,
                   minLines: 7,
@@ -238,23 +224,37 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     hintMaxLines: 3,
                     errorText: _inputError,
                     errorMaxLines: 3,
-                    filled: true,
-                    fillColor: YbColors.surface,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      _text.text = _example;
+                      _inputError = null;
+                    }),
+                    child: Text(
+                      'Isi dengan contoh',
+                      style: YbText.body(
+                        color: YbColors.primary,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: YbColors.surface,
-                    borderRadius: BorderRadius.circular(YbRadius.lg),
+                    color: YbColors.accentSoft,
+                    borderRadius: BorderRadius.circular(YbRadius.md),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Supaya terbaca jelas',
-                        style: YbText.body(weight: FontWeight.w600),
+                        style: YbText.body(weight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
                       for (final tip in const [
@@ -263,29 +263,19 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         'Nominal dan "lunas" atau "belum" ikut terbaca',
                       ])
                         Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.check_rounded,
-                                size: 18,
-                                color: YbColors.success,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(tip, style: YbText.body(size: 14)),
-                              ),
-                            ],
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '•  $tip',
+                            style: YbText.label(color: YbColors.ink),
                           ),
                         ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                _Note(
-                  icon: Icons.lock_outline_rounded,
-                  text: 'Dibaca di HP ini saja, tidak dikirim ke mana pun.',
+                const SizedBox(height: 10),
+                Text(
+                  'Catatanmu dibaca di perangkat ini dan tidak dikirim ke mana pun.',
+                  style: YbText.label(),
                 ),
               ],
             ],
@@ -298,12 +288,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 child: FilledButton.icon(
                   onPressed: _reading ? null : _read,
                   icon: _reading
-                      ? SizedBox(
+                      ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: YbColors.onPrimary,
+                            color: Colors.white,
                           ),
                         )
                       : const Icon(Icons.auto_awesome_outlined, size: 20),
@@ -328,29 +318,33 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: YbBackButton(
+              PageHeader(
+                title: 'Periksa hasil',
+                trailing: OutlinedButton(
                   onPressed: () => setState(() => _rows = null),
+                  child: const Text('Ulangi'),
                 ),
               ),
-              const SizedBox(height: 16),
-              YbPageTitle(
-                'Periksa hasil',
-                subtitle: '${rows.length} nama terbaca dari catatanmu.',
-              ),
-              const SizedBox(height: 16),
-              YbSegmented<bool>(
-                options: [
-                  (false, 'Semua ${rows.length}', null),
-                  (true, 'Perlu dicek $reviewCount', null),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  YbChoiceChip(
+                    label: 'Semua ${rows.length}',
+                    selected: !_onlyReview,
+                    onTap: () => setState(() => _onlyReview = false),
+                  ),
+                  YbChoiceChip(
+                    label: 'Perlu dicek $reviewCount',
+                    selected: _onlyReview,
+                    onTap: () => setState(() => _onlyReview = true),
+                  ),
                 ],
-                selected: _onlyReview,
-                onChanged: (v) => setState(() => _onlyReview = v),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               if (shown.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
@@ -359,31 +353,22 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     textAlign: TextAlign.center,
                     style: YbText.body(color: YbColors.muted),
                   ),
-                )
-              else
-                YbGroup(
-                  children: [
-                    for (final (i, row) in shown)
-                      _ImportRowCard(
-                        row: row,
-                        onEdit: () => _editRow(i),
-                        onRemove: () => setState(() {
-                          rows.removeAt(i);
-                          if (rows.isEmpty) _rows = null;
-                        }),
-                      ),
-                  ],
                 ),
+              for (final (i, row) in shown) ...[
+                _ImportRowCard(
+                  row: row,
+                  onEdit: () => _editRow(i),
+                  onRemove: () => setState(() {
+                    rows.removeAt(i);
+                    if (rows.isEmpty) _rows = null;
+                  }),
+                ),
+                const SizedBox(height: 8),
+              ],
               const SizedBox(height: 4),
               Text(
                 'Yang disimpan hanya nama dan jenis member. Nominal dan status bayar ditampilkan untuk kamu cocokkan, lalu dicatat per sesi di menu Iuran.',
-                style: YbText.body(size: 13, color: YbColors.muted),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: YbColors.ink),
-                onPressed: () => setState(() => _rows = null),
-                child: const Text('Ulangi dari awal'),
+                style: YbText.label(),
               ),
             ],
           ),
@@ -426,79 +411,50 @@ class _ImportRowCard extends StatelessWidget {
       if (row.paid != null) row.paid! ? 'Lunas' : 'Belum bayar',
     ].join(' · ');
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
-      child: Row(
-        children: [
-          if (row.needsReview) ...[
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: YbColors.warningSoft,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.priority_high_rounded,
-                size: 20,
-                color: YbColors.warning,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.name,
-                  style: YbText.body(size: 16, weight: FontWeight.w600),
-                ),
-                Text(
-                  row.needsReview ? row.reason ?? 'Perlu dicek' : details,
-                  style: YbText.body(
-                    size: 13,
-                    color: row.needsReview ? YbColors.warning : YbColors.muted,
+    return Material(
+      color: row.needsReview ? YbColors.primarySoft : YbColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(YbRadius.md),
+        side: BorderSide(
+          color: row.needsReview ? YbColors.primary : YbColors.line,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.name,
+                    style: YbText.body(size: 15, weight: FontWeight.w700),
                   ),
-                ),
-              ],
+                  Text(
+                    row.needsReview ? row.reason ?? 'Perlu dicek' : details,
+                    style: YbText.label(
+                      color: row.needsReview
+                          ? YbColors.primaryDark
+                          : YbColors.muted,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            tooltip: 'Perbaiki ${row.name}',
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined, size: 20),
-          ),
-          IconButton(
-            tooltip: 'Buang ${row.name}',
-            onPressed: onRemove,
-            icon: Icon(Icons.close_rounded, size: 20, color: YbColors.muted),
-          ),
-        ],
+            IconButton(
+              tooltip: 'Perbaiki ${row.name}',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 20),
+            ),
+            IconButton(
+              tooltip: 'Buang ${row.name}',
+              onPressed: onRemove,
+              icon: Icon(Icons.close, size: 20, color: YbColors.muted),
+            ),
+          ],
+        ),
       ),
     );
   }
-}
-
-/// Keterangan kecil berikon di bawah kontrol.
-class _Note extends StatelessWidget {
-  const _Note({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(top: 1),
-        child: Icon(icon, size: 16, color: YbColors.muted),
-      ),
-      const SizedBox(width: 6),
-      Expanded(
-        child: Text(text, style: YbText.body(size: 13, color: YbColors.muted)),
-      ),
-    ],
-  );
 }
