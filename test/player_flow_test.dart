@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yukbadmin/app/router.dart';
+import 'package:yukbadmin/features/pb/state/providers.dart';
 import 'package:yukbadmin/main.dart';
+
+import 'test_helpers.dart';
 
 /// Menjalankan alur pemain dari masuk sampai sheet hubungi pengurus pada
 /// ukuran layar ponsel, untuk menangkap galat tata letak dan navigasi.
@@ -18,27 +22,71 @@ void main() {
   }
 
   Future<void> signIn(WidgetTester tester) async {
-    await tester.tap(find.text('Masuk dengan Google'));
-    await tester.pumpAndSettle();
+    await signInWithEmail(tester);
   }
 
   testWidgets('belum masuk diarahkan ke layar Masuk', (tester) async {
     await pumpApp(tester);
     expect(find.text('YukBadmin'), findsOneWidget);
-    expect(find.text('Masuk dengan Google'), findsOneWidget);
+    expect(find.text('Lanjut dengan Google'), findsOneWidget);
   });
+
+  testWidgets(
+    'daftar dengan email menolak isian salah, lalu akun belum terverifikasi',
+    (tester) async {
+      await pumpApp(tester);
+      await tester.tap(find.text('Masuk dengan email'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Daftar'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Buat akun').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Isi namamu, minimal 2 huruf.'), findsOneWidget);
+      expect(
+        find.text('Isi email yang benar, misalnya nama@email.com.'),
+        findsOneWidget,
+      );
+      expect(find.text('Kata sandi minimal 8 karakter.'), findsOneWidget);
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'Sinta Dewi');
+      await tester.pumpAndSettle();
+      await tester.enterText(fields.at(1), 'sinta@contoh.id');
+      await tester.pumpAndSettle();
+      await tester.enterText(fields.at(2), 'rahasia123');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Buat akun').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Atur preferensi mainmu'), findsOneWidget);
+      final c = ProviderScope.containerOf(
+        tester.element(find.byType(YukBadminApp)),
+      );
+      final user = c.read(sessionProvider)!;
+      expect(user.name, 'Sinta Dewi');
+      expect(user.emailVerified, isFalse);
+    },
+  );
 
   testWidgets('masuk, isi preferensi, lalu sampai beranda', (tester) async {
     await pumpApp(tester);
     await signIn(tester);
 
     expect(find.text('Atur preferensi mainmu'), findsOneWidget);
+    await tester.ensureVisible(find.text('Sab'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sab'));
     await tester.tap(find.text('Lanjut'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Siap main di mana?'), findsOneWidget);
-    expect(find.text('PB terdekat'), findsOneWidget);
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(YukBadminApp)),
+    );
+    expect(c.read(preferencesProvider).weekdays, contains(DateTime.saturday));
+
+    expect(find.text('Halo, Bryan'), findsOneWidget);
+    expect(find.text('Jadwalmu'), findsOneWidget);
   });
 
   testWidgets('cari, filter, buka detail, simpan, dan hubungi pengurus', (
@@ -51,7 +99,7 @@ void main() {
 
     await tester.tap(find.text('Cari PB'));
     await tester.pumpAndSettle();
-    expect(find.text('PB terdaftar'), findsOneWidget);
+    expect(find.textContaining('PB terdaftar'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'rungkut');
     await tester.pumpAndSettle();
@@ -67,11 +115,12 @@ void main() {
     await tester.tap(find.text('Filter'));
     await tester.pumpAndSettle();
     expect(find.text('Filter PB'), findsOneWidget);
-    await tester.tap(find.text('S'));
+    // Kotak level juga ada di halaman Cari; yang di sheet ada di atas.
+    await tester.tap(find.text('S').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Tampilkan 1 PB'));
     await tester.pumpAndSettle();
-    expect(find.text('Filter (1)'), findsOneWidget);
+    expect(find.text('Filter · 1'), findsOneWidget);
     expect(find.text('PB Garuda Muda'), findsOneWidget);
 
     await tester.tap(find.text('PB Garuda Muda'));
@@ -88,6 +137,27 @@ void main() {
     expect(find.textContaining('Halo Pak Bambang, saya Bryan'), findsOneWidget);
   });
 
+  testWidgets('PB yang sudah dihubungi muncul di PB tersimpan', (tester) async {
+    await pumpApp(tester);
+    await signIn(tester);
+    await tester.tap(find.text('Lewati'));
+    await tester.pumpAndSettle();
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(YukBadminApp)),
+    );
+    c.read(routerProvider).push('/tersimpan');
+    await tester.pumpAndSettle();
+    expect(find.text('Sudah kamu hubungi'), findsNothing);
+    expect(find.text('Belum ada PB tersimpan'), findsOneWidget);
+
+    c
+        .read(contactedProvider.notifier)
+        .mark('pb-smash-surabaya', DateTime(2026, 11, 16, 9));
+    await tester.pumpAndSettle();
+    expect(find.text('Sudah kamu hubungi'), findsOneWidget);
+    expect(find.text('Dihubungi lewat WhatsApp · Sen, 16 Nov'), findsOneWidget);
+  });
+
   testWidgets('layar kecil dan teks besar tidak meluber', (tester) async {
     tester.platformDispatcher.textScaleFactorTestValue = 1.3;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -102,6 +172,8 @@ void main() {
       120,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('PB Smash Surabaya'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('PB Smash Surabaya'));
     await tester.pumpAndSettle();
     expect(find.text('Tanya pengurus'), findsOneWidget);

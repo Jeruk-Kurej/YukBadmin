@@ -12,7 +12,8 @@ import 'manage_shell.dart' show formatSessionDate;
 import 'manage_widgets.dart';
 import 'sessions_page.dart' show MissingSession;
 
-/// Tab Iuran: ringkasan semua sesi yang iurannya sudah tercatat.
+/// Tab Iuran (Final Design v4): ringkasan uang masuk, hal yang perlu
+/// ditindak, lalu daftar sesi yang iurannya sudah tercatat.
 class DuesTabPage extends ConsumerWidget {
   const DuesTabPage({super.key});
 
@@ -20,90 +21,196 @@ class DuesTabPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(manageProvider);
     final now = ref.watch(nowProvider)();
+    final sys = state.duesSystem;
     final sessions = state.events.where((e) => e.dues.isNotEmpty).toList()
       ..sort((a, b) => b.start.compareTo(a.start));
     final collected = sessions.fold(0, (sum, e) => sum + e.collected);
     final outstanding = sessions.fold(0, (sum, e) => sum + e.outstanding);
+    final refunds = state.refundsToHandle;
+    // Sistem per orang: sesi yang sudah lewat dan belum ditagih.
+    final toBill = sys.timing == DuesTiming.perOrang
+        ? state
+              .past(now)
+              .where((e) => !e.billsSent && e.attendees.isNotEmpty)
+              .toList()
+        : const <SessionEvent>[];
+    // Setelah main harga tetap: yang hadir tapi belum ditagih.
+    final unbilled = sys.timing == DuesTiming.setelahTetap
+        ? state.events
+              .where((e) => e.attendanceSaved && e.unbilledAttendees.isNotEmpty)
+              .toList()
+        : const <SessionEvent>[];
 
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          const PageHeader(title: 'Iuran', back: false),
-          const SizedBox(height: 14),
-          if (sessions.isEmpty)
+          YbPageTitle(
+            'Iuran',
+            subtitle: sys.summary(state.pb?.feePerSession ?? 0),
+            trailing: IconButton(
+              tooltip: 'Sistem iuran',
+              onPressed: () => context.push('/kelola/sistem-iuran'),
+              style: IconButton.styleFrom(
+                backgroundColor: YbColors.surface,
+                fixedSize: const Size(44, 44),
+              ),
+              icon: Icon(Icons.tune_rounded, color: YbColors.ink, size: 22),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (sessions.isEmpty && toBill.isEmpty && unbilled.isEmpty)
             YbEmptyState(
               icon: Icons.payments_outlined,
               title: 'Belum ada iuran tercatat',
-              message: 'Iuran muncul setelah kamu mencatat kehadiran sebuah sesi. Yang hadir otomatis masuk daftar iuran.',
+              message: sys.timing == DuesTiming.sebelum
+                  ? 'Iuran muncul saat member konfirmasi ikut atau setelah kamu mencatat kehadiran.'
+                  : 'Iuran muncul setelah kamu mencatat kehadiran sebuah sesi.',
               actionLabel: 'Buka jadwal',
               onAction: () => context.go('/kelola/jadwal'),
             )
           else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: AmountTile(
-                    amount: collected,
-                    label: 'Terkumpul',
-                    positive: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: AmountTile(
-                    amount: outstanding,
-                    label: 'Belum masuk',
-                    positive: false,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Text('Per sesi', style: YbText.display(size: 17)),
-            const SizedBox(height: 10),
-            for (final e in sessions) ...[
-              YbCard(
-                onTap: () => context.push('/sesi/${e.id}/iuran'),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(e.title, style: YbText.display(size: 16)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${formatSessionDate(e.start, now)} · ${e.timeRange}',
-                            style: YbText.label(),
-                          ),
-                        ],
-                      ),
+            _DuesSummary(collected: collected, outstanding: outstanding),
+            if (toBill.isNotEmpty || unbilled.isNotEmpty || refunds > 0) ...[
+              const SizedBox(height: 24),
+              YbSectionTitle('Perlu ditindak'),
+              const SizedBox(height: 10),
+              YbGroup(
+                children: [
+                  for (final e in toBill)
+                    YbListRow(
+                      icon: Icons.edit_note_rounded,
+                      title: 'Catat pemakaian ${e.title.toLowerCase()}',
+                      subtitle:
+                          '${formatSessionDate(e.start, now)} · ${e.attendees.length} hadir, belum ditagih',
+                      onTap: () => context.push('/sesi/${e.id}/pemakaian'),
                     ),
-                    const SizedBox(width: 8),
-                    e.proofsToCheck > 0
-                        ? YbTag(
-                            '${e.proofsToCheck} bukti baru',
-                            tone: YbTagTone.primary,
-                          )
-                        : e.unpaidCount == 0
-                        ? const YbTag(
-                            'Lunas semua',
-                            tone: YbTagTone.success,
-                            icon: Icons.check,
-                          )
-                        : YbTag(
-                            '${e.unpaidCount} belum bayar',
-                            tone: YbTagTone.accent,
-                          ),
-                    Icon(Icons.chevron_right, color: YbColors.muted),
-                  ],
-                ),
+                  for (final e in unbilled)
+                    YbListRow(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'Tagih ${e.title.toLowerCase()}',
+                      subtitle:
+                          '${formatSessionDate(e.start, now)} · ${e.unbilledAttendees.length} hadir, belum ditagih',
+                      onTap: () => context.push('/sesi/${e.id}/iuran'),
+                    ),
+                  if (refunds > 0)
+                    YbListRow(
+                      icon: Icons.undo_rounded,
+                      title: '$refunds pembatalan perlu diurus',
+                      subtitle: 'Kembalikan uang atau putuskan pengajuan',
+                      onTap: () => context.push('/kelola/pembatalan'),
+                    ),
+                ],
               ),
-              const SizedBox(height: 8),
+            ],
+            if (sessions.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              YbSectionTitle('Per sesi'),
+              const SizedBox(height: 10),
+              YbGroup(
+                children: [
+                  for (final e in sessions)
+                    YbListRow(
+                      title: e.title,
+                      subtitle:
+                          '${formatSessionDate(e.start, now)} · ${e.timeRange}',
+                      onTap: () => context.push('/sesi/${e.id}/iuran'),
+                      chevron: true,
+                      trailing: e.proofsToCheck > 0
+                          ? YbTag(
+                              '${e.proofsToCheck} bukti baru',
+                              tone: YbTagTone.pending,
+                            )
+                          : e.unpaidCount == 0
+                          ? const YbTag(
+                              'Lunas',
+                              tone: YbTagTone.success,
+                              icon: Icons.check,
+                            )
+                          : YbTag(
+                              '${e.unpaidCount} belum',
+                              tone: YbTagTone.warning,
+                            ),
+                    ),
+                ],
+              ),
             ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Kartu ringkasan: uang terkumpul, yang belum masuk, dan bilah kemajuan.
+class _DuesSummary extends StatelessWidget {
+  const _DuesSummary({required this.collected, required this.outstanding});
+
+  final int collected;
+  final int outstanding;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = collected + outstanding;
+    final ratio = total == 0 ? 0.0 : collected / total;
+    Widget amount(String label, int value, Color dot) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: YbText.body(size: 13, color: YbColors.muted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(formatRupiah(value), style: YbText.display(size: 24)),
+          ),
+        ],
+      ),
+    );
+
+    return YbCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              amount('Terkumpul', collected, YbColors.success),
+              const SizedBox(width: 16),
+              amount('Belum masuk', outstanding, YbColors.warning),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Semantics(
+            label: '${(ratio * 100).round()} persen iuran sudah masuk',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(YbRadius.pill),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 8,
+                color: YbColors.success,
+                backgroundColor: YbColors.warningSoft,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -123,57 +230,58 @@ class SessionDuesPage extends ConsumerWidget {
     Member member,
     Due due,
   ) async {
-    final controller = TextEditingController(text: '${due.amount}');
     final formKey = GlobalKey<FormState>();
     final amount = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: YbColors.surface,
-        surfaceTintColor: Colors.transparent,
-        title: Text('Iuran ${member.name}', style: YbText.display(size: 18)),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              prefixText: 'Rp ',
-              helperText: 'Termasuk shuttlecock yang dipakai, kalau ada.',
-              helperMaxLines: 2,
+      builder: (_) => TextControllerScope(
+        initialText: '${due.amount}',
+        builder: (context, controller) => AlertDialog(
+          backgroundColor: YbColors.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text('Iuran ${member.name}', style: YbText.display(size: 18)),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                prefixText: 'Rp ',
+                helperText: 'Termasuk shuttlecock yang dipakai, kalau ada.',
+                helperMaxLines: 2,
+              ),
+              validator: (v) {
+                final value = parseRupiah(v ?? '');
+                if (value == null) return 'Isi nominal iuran.';
+                if (value > 5000000) return 'Nominal terlalu besar, cek lagi.';
+                return null;
+              },
             ),
-            validator: (v) {
-              final value = parseRupiah(v ?? '');
-              if (value == null) return 'Isi nominal iuran.';
-              if (value > 5000000) return 'Nominal terlalu besar, cek lagi.';
-              return null;
-            },
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Batal', style: YbText.body(weight: FontWeight.w700)),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(context).pop(parseRupiah(controller.text));
-              }
-            },
-            child: Text(
-              'Simpan',
-              style: YbText.body(
-                color: YbColors.primary,
-                weight: FontWeight.w700,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Batal', style: YbText.body(weight: FontWeight.w700)),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(context).pop(parseRupiah(controller.text));
+                }
+              },
+              child: Text(
+                'Simpan',
+                style: YbText.body(
+                  color: YbColors.primary,
+                  weight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-    controller.dispose();
     if (amount != null) {
       ref
           .read(manageProvider.notifier)
@@ -193,7 +301,10 @@ class SessionDuesPage extends ConsumerWidget {
     notifier.setDue(
       event.id,
       member.id,
-      (previous ?? Due(amount: pb?.feePerSession ?? 0)).copyWith(paid: true),
+      (previous ?? Due(amount: pb?.feePerSession ?? 0)).copyWith(
+        paid: true,
+        paidAt: ref.read(nowProvider)(),
+      ),
     );
     // Salah pencet bisa langsung dibatalkan dari snackbar.
     ScaffoldMessenger.of(context)
@@ -232,9 +343,7 @@ class SessionDuesPage extends ConsumerWidget {
       confirmLabel: 'Ya, belum bayar',
     );
     if (ok) {
-      ref
-          .read(manageProvider.notifier)
-          .setDue(event.id, member.id, due.copyWith(paid: false));
+      ref.read(manageProvider.notifier).setPaid(event.id, member.id, false);
     }
   }
 
@@ -291,10 +400,10 @@ class SessionDuesPage extends ConsumerWidget {
                   else ...[
                     if (!event.attendanceSaved) ...[
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: YbColors.accentSoft,
-                          borderRadius: BorderRadius.circular(YbRadius.md),
+                          color: YbColors.warningSoft,
+                          borderRadius: BorderRadius.circular(YbRadius.lg),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -320,25 +429,43 @@ class SessionDuesPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
                     ],
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AmountTile(
-                            amount: event.collected,
-                            label: 'Terkumpul',
-                            positive: true,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: AmountTile(
-                            amount: event.outstanding,
-                            label: 'Belum masuk',
-                            positive: false,
-                          ),
-                        ),
-                      ],
+                    _DuesSummary(
+                      collected: event.collected,
+                      outstanding: event.outstanding,
                     ),
+                    if (state.duesSystem.timing == DuesTiming.perOrang &&
+                        event.attendanceSaved) ...[
+                      const SizedBox(height: 10),
+                      YbGroup(
+                        children: [
+                          YbListRow(
+                            icon: Icons.edit_note_rounded,
+                            title: event.billsSent
+                                ? 'Ubah pemakaian'
+                                : 'Catat pemakaian',
+                            subtitle: event.billsSent
+                                ? 'Tagihan sudah dikirim ke pemain'
+                                : 'Match dan kok tiap pemain, lalu kirim tagihan',
+                            onTap: () =>
+                                context.push('/sesi/${event.id}/pemakaian'),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (state.duesSystem.timing == DuesTiming.setelahTetap &&
+                        event.attendanceSaved &&
+                        event.unbilledAttendees.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        onPressed: () => ref
+                            .read(manageProvider.notifier)
+                            .billAttendees(event.id),
+                        icon: const Icon(Icons.receipt_long_outlined, size: 20),
+                        label: Text(
+                          'Tagih ${event.unbilledAttendees.length} yang hadir',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     if (rows.isNotEmpty) ...[
                       Text(
@@ -385,9 +512,13 @@ class SessionDuesPage extends ConsumerWidget {
                                               [
                                                 member.typeShort,
                                                 formatRupiah(due.amount),
-                                                if (!event.attendees.contains(
-                                                  member.id,
-                                                ))
+                                                if (due.cancelledAt != null ||
+                                                    due.refund != null)
+                                                  'batal ikut'
+                                                else if (due.paid &&
+                                                    !event.attendees.contains(
+                                                      member.id,
+                                                    ))
                                                   'bayar di muka',
                                                 if (due.awaitingCheck)
                                                   'bukti dikirim',
@@ -413,7 +544,17 @@ class SessionDuesPage extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            if (due.paid)
+                            if (due.refund != null)
+                              TextButton(
+                                onPressed: () =>
+                                    context.push('/kelola/pembatalan'),
+                                child: Text(switch (due.refund!.status) {
+                                  RefundStatus.selesai => 'Dikembalikan',
+                                  RefundStatus.tidakKembali => 'Tidak kembali',
+                                  _ => 'Pengembalian',
+                                }),
+                              )
+                            else if (due.paid)
                               TextButton.icon(
                                 onPressed: () => _unmarkPaid(
                                   context,
@@ -591,7 +732,9 @@ class _ReminderPageState extends ConsumerState<ReminderPage> {
     final unpaid = [
       for (final entry in event.dues.entries)
         // Yang sudah mengirim bukti tidak perlu diingatkan.
-        if (!entry.value.paid && !entry.value.awaitingCheck)
+        if (entry.value.billable &&
+            !entry.value.paid &&
+            !entry.value.awaitingCheck)
           if (state.memberById(entry.key) case final member?)
             (member, entry.value),
     ];

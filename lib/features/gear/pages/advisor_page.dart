@@ -69,38 +69,74 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
             children: [
-              const PageHeader(title: 'Saran perlengkapan'),
-              const SizedBox(height: 12),
-              Text(
-                'Jawab beberapa pertanyaan singkat. Kami carikan yang cocok dari toko partner, lengkap dengan alasannya. Fitur ini opsional, kamu tetap bisa lihat semua produk sendiri.',
-                style: YbText.body(color: YbColors.muted),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: YbBackButton(),
+              ),
+              const SizedBox(height: 16),
+              const YbPageTitle(
+                'Saran perlengkapan',
+                subtitle: 'Jawab beberapa pertanyaan, kami carikan dari toko partner.',
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: YbColors.primarySoft,
+                  borderRadius: BorderRadius.circular(YbRadius.md),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 20,
+                      color: YbColors.primaryDark,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Dicocokkan dari level dan gaya main, lengkap dengan alasannya. Kamu tetap bisa lihat semua produk sendiri.',
+                        style: YbText.body(
+                          size: 14,
+                          color: YbColors.primaryDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               _Question(
+                number: 1,
                 title: 'Kamu cari apa?',
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                child: Row(
                   children: [
-                    YbChoiceChip(
-                      icon: Icons.sports_tennis,
-                      label: 'Raket',
-                      selected: _need == _Need.raket,
-                      onTap: () => setState(() => _need = _Need.raket),
+                    Expanded(
+                      child: YbChoiceChip(
+                        icon: Icons.sports_tennis,
+                        label: 'Raket',
+                        selected: _need == _Need.raket,
+                        onTap: () => setState(() => _need = _Need.raket),
+                      ),
                     ),
-                    YbChoiceChip(
-                      icon: Icons.directions_run,
-                      label: 'Sepatu',
-                      selected: _need == _Need.sepatu,
-                      onTap: () => setState(() => _need = _Need.sepatu),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: YbChoiceChip(
+                        icon: Icons.directions_run,
+                        label: 'Sepatu',
+                        selected: _need == _Need.sepatu,
+                        onTap: () => setState(() => _need = _Need.sepatu),
+                      ),
                     ),
                   ],
                 ),
               ),
               if (_need == _Need.raket) ...[
                 _Question(
+                  number: 2,
                   title: 'Levelmu sekarang',
                   child: Column(
                     children: [
@@ -115,6 +151,7 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
                   ),
                 ),
                 _Question(
+                  number: 3,
                   title: 'Gaya mainmu',
                   child: Column(
                     children: [
@@ -129,6 +166,7 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
                   ),
                 ),
                 _Question(
+                  number: 4,
                   title: 'Posisi yang paling sering (opsional)',
                   child: Wrap(
                     spacing: 8,
@@ -145,6 +183,7 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
                 ),
               ] else
                 _Question(
+                  number: 2,
                   title: 'Ukuran sepatumu (EU)',
                   subtitle:
                       'Lihat label di dalam sepatu yang biasa kamu pakai.',
@@ -217,25 +256,34 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
         : ['Sepatu', 'Ukuran $_shoeSize'];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        PageHeader(
-          title: 'Hasil saran',
-          trailing: OutlinedButton.icon(
-            onPressed: () => setState(() => _showResult = false),
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Ubah'),
-          ),
+        Row(
+          children: [
+            YbBackButton(onPressed: () => setState(() => _showResult = false)),
+            const Spacer(),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: YbColors.surface,
+                foregroundColor: YbColors.ink,
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              onPressed: () => setState(() => _showResult = false),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Ubah'),
+            ),
+          ],
         ),
+        const SizedBox(height: 16),
+        const YbPageTitle('Hasil saran'),
+        const SizedBox(height: 16),
+        YbSectionTitle('Berdasarkan'),
         const SizedBox(height: 10),
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Berdasarkan', style: YbText.label()),
-            for (final item in summary) YbTag(item, tone: YbTagTone.accent),
-          ],
+          children: [for (final item in summary) YbTag(item)],
         ),
         const SizedBox(height: 10),
         _MethodLink(rules: _need == _Need.raket ? racketMethod : shoeMethod),
@@ -253,6 +301,11 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
             onAction: () => context.go('/perlengkapan'),
           ),
         for (final (i, s) in suggestions.indexed) ...[
+          if (i == 1) ...[
+            const SizedBox(height: 14),
+            YbSectionTitle('Pilihan lain'),
+            const SizedBox(height: 10),
+          ],
           _SuggestionCard(
             suggestion: s,
             best: i == 0 && s.matched == s.total,
@@ -270,8 +323,14 @@ class _AdvisorPageState extends ConsumerState<AdvisorPage> {
 }
 
 class _Question extends StatelessWidget {
-  const _Question({required this.title, required this.child, this.subtitle});
+  const _Question({
+    required this.number,
+    required this.title,
+    required this.child,
+    this.subtitle,
+  });
 
+  final int number;
   final String title;
   final String? subtitle;
   final Widget child;
@@ -279,14 +338,47 @@ class _Question extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: YbText.display(size: 17)),
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: YbColors.night,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$number',
+                  style: YbText.body(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: YbColors.onNight,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: YbText.body(size: 17, weight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
-            Text(subtitle!, style: YbText.label()),
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: YbText.body(size: 13, color: YbColors.muted),
+            ),
           ],
           const SizedBox(height: 10),
           child,
@@ -491,80 +583,134 @@ class _SuggestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = suggestion.product;
-    return YbCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    final score = Semantics(
+      label: 'Cocok ${suggestion.matched} dari ${suggestion.total}',
+      excludeSemantics: true,
+      child: Text(
+        '${suggestion.matched}/${suggestion.total}',
+        style: YbText.score(size: best ? 30 : 22),
+      ),
+    );
+    final reasons = [
+      Text('Alasannya', style: YbText.body(size: 13, color: YbColors.muted)),
+      for (final r in suggestion.reasons)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(YbRadius.sm),
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: ProductImage(product: p),
-                ),
+              Icon(
+                r.matched ? Icons.check_rounded : Icons.info_outline_rounded,
+                size: 18,
+                color: r.matched ? YbColors.success : YbColors.warning,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        YbTag(
-                          'Cocok ${suggestion.matched} dari ${suggestion.total}',
-                          tone: suggestion.matched == suggestion.total
-                              ? YbTagTone.success
-                              : YbTagTone.neutral,
-                        ),
-                        if (best)
-                          const YbTag('Paling cocok', tone: YbTagTone.primary),
-                        stockTag(p.inStock),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(p.name, style: YbText.display(size: 16)),
-                    Text(
-                      [formatRupiah(p.price), ?shopName].join(' · '),
-                      style: YbText.label(),
-                    ),
-                  ],
-                ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(r.text, style: YbText.body(size: 14))),
+            ],
+          ),
+        ),
+    ];
+    final title = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.name,
+                style: YbText.body(size: 16, weight: FontWeight.w600),
+              ),
+              Text(
+                [?shopName, if (!p.inStock) 'stok habis'].join(' · '),
+                style: YbText.body(size: 13, color: YbColors.muted),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Alasannya',
-            style: YbText.body(size: 13, weight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          for (final r in suggestion.reasons)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        const SizedBox(width: 8),
+        Text(formatRupiahShort(p.price), style: YbText.display(size: 17)),
+      ],
+    );
+
+    return YbCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (best)
+            Container(
+              height: 150,
+              color: YbColors.accentSoft,
+              child: Stack(
                 children: [
-                  Icon(
-                    r.matched
-                        ? Icons.check_circle
-                        : Icons.remove_circle_outline,
-                    size: 18,
-                    color: r.matched ? YbColors.success : YbColors.muted,
+                  Positioned.fill(child: ProductImage(product: p)),
+                  Positioned(
+                    left: 14,
+                    top: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: YbColors.accent,
+                        borderRadius: BorderRadius.circular(YbRadius.sm),
+                      ),
+                      child: Text(
+                        'Paling cocok',
+                        style: YbText.body(
+                          size: 13,
+                          weight: FontWeight.w600,
+                          color: YbColors.onAccent,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(r.text, style: YbText.body(size: 13))),
+                  Positioned(right: 14, top: 8, child: score),
                 ],
               ),
             ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () => context.push('/produk/${p.id}'),
-            child: const Text('Lihat produk dan toko'),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (best)
+                  title
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(YbRadius.md),
+                        child: SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: ProductImage(product: p),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: title),
+                      const SizedBox(width: 8),
+                      score,
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                ...reasons,
+                const SizedBox(height: 14),
+                if (best)
+                  FilledButton(
+                    onPressed: () => context.push('/produk/${p.id}'),
+                    child: const Text('Lihat produk dan toko'),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: () => context.push('/produk/${p.id}'),
+                    child: const Text('Lihat produk dan toko'),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

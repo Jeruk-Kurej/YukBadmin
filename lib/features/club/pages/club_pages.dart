@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/yb_widgets.dart';
-import '../../manage/data/manage_models.dart' show initialsOf, monthNames;
+import '../../manage/data/manage_models.dart';
 import '../../manage/pages/manage_widgets.dart';
 import '../../manage/state/manage_providers.dart';
 import '../../pb/data/pb_models.dart';
@@ -330,49 +330,11 @@ class ClubDetailPage extends ConsumerWidget {
                 onRsvp: (eventId, r) => notifier.setRsvp(pbId, eventId, r),
                 onProof: (eventId, path) =>
                     notifier.submitProof(pbId, eventId, path),
+                onRefundRequest: (eventId, reason) =>
+                    notifier.requestRefund(pbId, eventId, reason),
+                system: membership.duesSystem,
               ),
             ]),
-    );
-  }
-}
-
-/// Seksi PB-ku di Beranda pemain: judul di luar kartu, lalu kartu sesi
-/// terdekat dengan satu ajakan.
-class ClubHomeCard extends ConsumerWidget {
-  const ClubHomeCard({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final memberships = ref.watch(membershipProvider);
-    final pbs = ref.watch(pbListProvider).value ?? const [];
-    final now = ref.watch(nowProvider)();
-    final m = memberships.firstOrNull;
-    final pb = m == null ? null : pbs.where((p) => p.id == m.pbId).firstOrNull;
-    if (m == null || pb == null) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(child: Text('PB-ku', style: YbText.display(size: 18))),
-            TextButton(
-              onPressed: () => context.push('/pb-ku'),
-              child: Text(
-                'Lihat',
-                style: YbText.body(
-                  color: YbColors.primary,
-                  weight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-        YbCard(
-          onTap: () => context.push('/pb-ku/${pb.id}'),
-          child: _ClubSummary(membership: m, pb: pb, now: now),
-        ),
-      ],
     );
   }
 }

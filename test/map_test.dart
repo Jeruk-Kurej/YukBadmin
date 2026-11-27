@@ -10,6 +10,8 @@ import 'package:yukbadmin/features/pb/pages/map_page.dart';
 import 'package:yukbadmin/features/pb/state/providers.dart';
 import 'package:yukbadmin/main.dart';
 
+import 'test_helpers.dart';
+
 /// PB tanpa titik lokasi, seperti PB yang baru didaftarkan lewat app.
 const _noLocation = Pb(
   id: 'pb-tanpa-lokasi',
@@ -75,13 +77,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Masuk dengan Google'));
-      await tester.pumpAndSettle();
+      await signInWithEmail(tester);
       await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cari PB'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Peta'));
+      await tester.tap(find.byTooltip('Tampilkan peta'));
       await tester.pumpAndSettle();
       return ProviderScope.containerOf(
         tester.element(find.byType(YukBadminApp)),
@@ -109,9 +110,9 @@ void main() {
 
     testWidgets('kembali ke daftar lewat tombol Daftar', (tester) async {
       await openMap(tester);
-      await tester.tap(find.text('Daftar'));
+      await tester.tap(find.byTooltip('Tampilkan daftar'));
       await tester.pumpAndSettle();
-      expect(find.text('PB terdaftar'), findsOneWidget);
+      expect(find.textContaining('PB terdaftar'), findsOneWidget);
     });
 
     testWidgets('peta ikut filter dan punya keadaan kosong', (tester) async {
@@ -121,7 +122,7 @@ void main() {
           .read(filterProvider.notifier)
           .set(const PbFilter(levels: {Level.s}));
       await tester.pumpAndSettle();
-      expect(find.text('Filter (1)'), findsOneWidget);
+      expect(find.text('Filter · 1'), findsOneWidget);
       expect(pin('PB Garuda Muda'), findsOneWidget);
       expect(pin('PB Rajawali'), findsNothing);
 
