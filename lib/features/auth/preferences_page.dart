@@ -7,6 +7,7 @@ import '../../core/widgets/yb_widgets.dart';
 import '../pb/data/pb_models.dart';
 import '../pb/pages/level_guide.dart';
 import '../pb/state/providers.dart';
+import 'state/auth_providers.dart';
 
 const areaOptions = [
   'Surabaya Timur',
@@ -18,9 +19,9 @@ const areaOptions = [
 
 /// Pilihan level untuk pemain baru, dipetakan ke tier F–S.
 const _levelChoices = <(String, Level?)>[
-  ('Baru mulai', Level.f),
-  ('Menengah', Level.d),
-  ('Mahir', Level.b),
+  ('Baru mulai · F–E', Level.f),
+  ('Menengah · D–C', Level.d),
+  ('Mahir · B–S', Level.b),
   ('Belum tahu', null),
 ];
 
@@ -57,6 +58,11 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
     if (widget.editing) {
       context.pop();
     } else {
+      // Halaman ini hanya muncul sekali per akun.
+      final email = ref.read(sessionProvider)?.email;
+      if (email != null) {
+        ref.read(accountsProvider.notifier).markPreferencesDone(email);
+      }
       context.go('/beranda');
     }
   }
@@ -71,59 +77,42 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                 children: [
-                  Row(
-                    children: [
-                      if (widget.editing)
-                        const YbBackButton()
-                      else ...[
-                        Container(
-                          width: 32,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: YbColors.primary,
-                            borderRadius: BorderRadius.circular(3),
+                  SizedBox(
+                    height: 44,
+                    child: Row(
+                      children: [
+                        if (widget.editing) const YbBackButton(),
+                        const Spacer(),
+                        if (!widget.editing)
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: YbColors.ink,
+                            ),
+                            onPressed: () => _finish(save: false),
+                            child: const Text('Lewati'),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 14,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: YbColors.line,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
                       ],
-                      const Spacer(),
-                      if (!widget.editing)
-                        OutlinedButton(
-                          onPressed: () => _finish(save: false),
-                          child: const Text('Lewati'),
-                        ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  Text(
-                    'Atur preferensi mainmu',
-                    style: YbText.display(size: 30),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      widget.editing
+                          ? 'Ubah preferensi main'
+                          : 'Atur preferensi mainmu',
+                      style: YbText.display(size: 32),
+                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                   Text(
-                    'Kami urutkan PB yang cocok dengan levelmu, areamu, dan hari kamu bisa main.',
+                    'Untuk mengurutkan PB yang cocok.',
                     style: YbText.body(color: YbColors.muted),
                   ),
                   const SizedBox(height: 24),
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('Level mainmu', style: YbText.label()),
-                      const LevelHelpButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                  const _Section('Level mainmu'),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -136,9 +125,25 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 22),
-                  Text('Area main', style: YbText.label()),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 16,
+                        color: YbColors.muted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'F baru mulai, S paling mahir.',
+                        style: YbText.body(size: 13, color: YbColors.muted),
+                      ),
+                      const LevelHelpButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const _Section('Area main'),
                   DropdownButtonFormField<String>(
                     initialValue: _draft.area,
                     isExpanded: true,
@@ -148,7 +153,7 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
                         color: YbColors.ink,
                       ),
                     ),
-                    style: YbText.body(size: 15),
+                    style: YbText.body(size: 16, color: YbColors.ink),
                     items: [
                       for (final area in areaOptions)
                         DropdownMenuItem(value: area, child: Text(area)),
@@ -156,15 +161,15 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
                     onChanged: (area) =>
                         setState(() => _draft = _draft.copyWith(area: area)),
                   ),
-                  const SizedBox(height: 22),
-                  Text('Hari kamu bisa main', style: YbText.label()),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 24),
+                  const _Section('Hari kamu bisa main'),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       for (final day in dayShort.entries)
                         YbChoiceChip(
+                          round: true,
                           label: day.value,
                           selected: _draft.weekdays.contains(day.key),
                           onTap: () => setState(() {
@@ -175,20 +180,22 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
                         ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Boleh lebih dari satu.',
+                    style: YbText.body(size: 13, color: YbColors.muted),
+                  ),
                 ],
               ),
             ),
             Container(
               padding: EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
+                16,
+                8,
+                16,
                 12 + MediaQuery.viewPaddingOf(context).bottom,
               ),
-              decoration: BoxDecoration(
-                color: YbColors.surface,
-                border: Border(top: BorderSide(color: YbColors.line)),
-              ),
+              color: YbColors.bg,
               child: FilledButton(
                 onPressed: () => _finish(save: true),
                 child: Text(widget.editing ? 'Simpan' : 'Lanjut'),
@@ -199,4 +206,20 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
       ),
     );
   }
+}
+
+/// Judul kecil tiap bagian preferensi.
+class _Section extends StatelessWidget {
+  const _Section(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Semantics(
+      header: true,
+      child: Text(text, style: YbText.body(size: 18, weight: FontWeight.w600)),
+    ),
+  );
 }

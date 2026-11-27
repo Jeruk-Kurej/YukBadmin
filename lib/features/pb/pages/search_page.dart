@@ -8,6 +8,7 @@ import '../../../core/widgets/yb_widgets.dart';
 import '../data/pb_models.dart';
 import '../state/providers.dart';
 import 'filter_sheet.dart';
+import 'level_guide.dart';
 import 'map_page.dart';
 import 'pb_card.dart';
 
@@ -31,68 +32,141 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     ref.read(filterProvider.notifier).set(const PbFilter());
   }
 
-  /// Kolom pencarian dan chip filter, dipakai di tampilan daftar dan peta.
-  List<Widget> _controls(PbFilter filter, bool nightOnly) => [
-    TextField(
-      controller: _query,
-      textInputAction: TextInputAction.search,
-      onChanged: ref.read(filterProvider.notifier).setQuery,
-      style: YbText.body(size: 15),
-      decoration: InputDecoration(
-        hintText: 'Cari nama PB atau area',
-        prefixIcon: Icon(Icons.search, color: YbColors.ink),
-        suffixIcon: filter.query.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Hapus pencarian',
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () {
-                  _query.clear();
-                  ref.read(filterProvider.notifier).setQuery('');
-                },
-              ),
+  /// Kolom pencarian, pilihan level, dan chip filter, dipakai di tampilan
+  /// daftar dan peta.
+  List<Widget> _controls(
+    PbFilter filter,
+    bool nightOnly, {
+    bool levels = true,
+  }) {
+    final myLevel = ref.watch(preferencesProvider).level;
+    return [
+      TextField(
+        controller: _query,
+        textInputAction: TextInputAction.search,
+        onChanged: ref.read(filterProvider.notifier).setQuery,
+        style: YbText.body(size: 16),
+        decoration: InputDecoration(
+          hintText: 'Cari nama PB, GOR, atau area',
+          filled: true,
+          fillColor: YbColors.isDark ? YbColors.surface : YbColors.pendingSoft,
+          prefixIcon: Icon(Icons.search, color: YbColors.muted),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(YbRadius.pill),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(YbRadius.pill),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(YbRadius.pill),
+            borderSide: BorderSide(color: YbColors.primary, width: 1.5),
+          ),
+          suffixIcon: filter.query.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Hapus pencarian',
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () {
+                    _query.clear();
+                    ref.read(filterProvider.notifier).setQuery('');
+                  },
+                ),
+        ),
       ),
-    ),
-    const SizedBox(height: 12),
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        YbChoiceChip(
-          key: TourKeys.searchFilter,
-          icon: Icons.tune,
-          label: filter.activeCount > 0
-              ? 'Filter (${filter.activeCount})'
-              : 'Filter',
-          selected: filter.activeCount > 0,
-          onTap: () => showFilterSheet(context),
-        ),
-        YbChoiceChip(
-          label: 'Main malam',
-          selected: nightOnly,
-          onTap: () => ref
-              .read(filterProvider.notifier)
-              .set(
-                filter.copyWith(
-                  dayParts: nightOnly ? const {} : const {DayPart.malam},
+      if (levels) ...[
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text('Level', style: YbText.body(size: 13, color: YbColors.muted)),
+            const Spacer(),
+            Flexible(
+              child: InkWell(
+                onTap: () => showLevelGuide(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    myLevel == null
+                        ? 'Apa arti level?'
+                        : 'Levelmu ${myLevel.label} · Apa arti level?',
+                    style: YbText.body(
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: YbColors.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
+            ),
+          ],
         ),
-        YbChoiceChip(
-          label: 'Akhir pekan',
-          selected: filter.weekendOnly,
-          onTap: () => ref
-              .read(filterProvider.notifier)
-              .set(
-                filter.copyWith(
-                  weekendOnly: !filter.weekendOnly,
-                  weekdaysOnly: false,
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (final (i, l) in Level.values.indexed) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(
+                child: _LevelSquare(
+                  level: l,
+                  selected: filter.levels.contains(l),
+                  mine: l == myLevel,
+                  onTap: () {
+                    final next = {...filter.levels};
+                    if (!next.remove(l)) next.add(l);
+                    ref
+                        .read(filterProvider.notifier)
+                        .set(filter.copyWith(levels: next));
+                  },
                 ),
               ),
+            ],
+          ],
         ),
       ],
-    ),
-  ];
+      const SizedBox(height: 14),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            _FilterButton(
+              key: TourKeys.searchFilter,
+              count: filter.activeCount,
+              onTap: () => showFilterSheet(context),
+            ),
+            const SizedBox(width: 8),
+            YbChoiceChip(
+              label: 'Main malam',
+              selected: nightOnly,
+              onTap: () => ref
+                  .read(filterProvider.notifier)
+                  .set(
+                    filter.copyWith(
+                      dayParts: nightOnly ? const {} : const {DayPart.malam},
+                    ),
+                  ),
+            ),
+            const SizedBox(width: 8),
+            YbChoiceChip(
+              label: 'Akhir pekan',
+              selected: filter.weekendOnly,
+              onTap: () => ref
+                  .read(filterProvider.notifier)
+                  .set(
+                    filter.copyWith(
+                      weekendOnly: !filter.weekendOnly,
+                      weekdaysOnly: false,
+                    ),
+                  ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
 
   @override
   void dispose() {
@@ -116,32 +190,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Peta PB',
-                            style: YbText.display(size: 30),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => setState(() => _mapView = false),
-                        icon: const Icon(Icons.list, size: 18),
-                        label: const Text('Daftar'),
-                      ),
-                    ],
+                  YbPageTitle(
+                    'Peta PB',
+                    trailing: _RoundIcon(
+                      icon: Icons.list,
+                      tooltip: 'Tampilkan daftar',
+                      onTap: () => setState(() => _mapView = false),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  ..._controls(filter, nightOnly),
+                  ..._controls(filter, nightOnly, levels: false),
                 ],
               ),
             ),
@@ -161,59 +223,40 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       child: CustomScrollView(
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             sliver: SliverList.list(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text('Cari PB', style: YbText.display(size: 30)),
+                YbPageTitle(
+                  'Cari PB',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _RoundIcon(
+                        icon: Icons.star_outline_rounded,
+                        tooltip: 'PB tersimpan',
+                        onTap: () => context.push('/tersimpan'),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => context.push('/tersimpan'),
-                      icon: const Icon(Icons.star_outline_rounded, size: 18),
-                      label: const Text('Tersimpan'),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      _RoundIcon(
+                        icon: Icons.map_outlined,
+                        tooltip: 'Tampilkan peta',
+                        onTap: () => setState(() => _mapView = true),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      count?.toString() ?? '–',
-                      style: YbText.display(
-                        size: 40,
-                        color: YbColors.primary,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: Text(
-                          filtering ? 'PB sesuai pencarianmu' : 'PB terdaftar',
-                          style: YbText.body(color: YbColors.muted),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() => _mapView = true),
-                      icon: const Icon(Icons.map_outlined, size: 18),
-                      label: const Text('Peta'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 ..._controls(filter, nightOnly),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
+                Text(
+                  count == null
+                      ? 'Memuat PB…'
+                      : filtering
+                      ? '$count PB cocok'
+                      : '$count PB terdaftar',
+                  style: YbText.display(size: 20),
+                ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -248,15 +291,136 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     ),
                   )
                 : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                     sliver: SliverList.separated(
                       itemCount: list.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) => PbListCard(pb: list[i]),
+                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      itemBuilder: (_, i) => PbPhotoCard(pb: list[i]),
                     ),
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tombol ikon bulat putih di kanan judul.
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    onPressed: onTap,
+    style: IconButton.styleFrom(
+      backgroundColor: YbColors.surface,
+      fixedSize: const Size(44, 44),
+    ),
+    icon: Icon(icon, size: 22, color: YbColors.ink),
+  );
+}
+
+/// Kotak level F–S. Yang dipilih biru tua; level pemain ditandai titik.
+class _LevelSquare extends StatelessWidget {
+  const _LevelSquare({
+    required this.level,
+    required this.selected,
+    required this.mine,
+    required this.onTap,
+  });
+
+  final Level level;
+  final bool selected;
+  final bool mine;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Level ${level.label}${mine ? ', levelmu' : ''}',
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? YbColors.primary : YbColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(YbRadius.md),
+          side: BorderSide(color: selected ? YbColors.primary : YbColors.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: Text(
+                level.label,
+                style: YbText.body(
+                  size: 18,
+                  weight: FontWeight.w600,
+                  color: selected ? YbColors.onPrimary : YbColors.ink,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tombol "Filter · n" biru tua.
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({super.key, required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = count > 0;
+    return Material(
+      color: active ? YbColors.night : YbColors.surface,
+      shape: StadiumBorder(
+        side: active ? BorderSide.none : BorderSide(color: YbColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune,
+                  size: 18,
+                  color: active ? Colors.white : YbColors.ink,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  active ? 'Filter · $count' : 'Filter',
+                  style: YbText.body(
+                    size: 14,
+                    weight: FontWeight.w600,
+                    color: active ? Colors.white : YbColors.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
