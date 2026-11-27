@@ -134,6 +134,9 @@ class _TourOverlayState extends State<_TourOverlay> {
         : size.height - padding.bottom - hole.bottom - 24;
     final spaceAbove = hole == null ? 0.0 : hole.top - padding.top - 24;
     final below = spaceBelow >= spaceAbove;
+    // Bagian yang disorot terlalu besar: balon menumpang di bawah layar
+    // supaya teks dan tombolnya tidak terpotong.
+    final cramped = (below ? spaceBelow : spaceAbove) < 180;
 
     return Stack(
       children: [
@@ -149,11 +152,15 @@ class _TourOverlayState extends State<_TourOverlay> {
           Positioned(
             left: 16,
             right: 16,
-            top: below ? hole.bottom + 12 : null,
-            bottom: below ? null : size.height - hole.top + 12,
+            top: cramped ? null : (below ? hole.bottom + 12 : null),
+            bottom: cramped
+                ? padding.bottom + 16
+                : (below ? null : size.height - hole.top + 12),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: below ? spaceBelow : spaceAbove,
+                maxHeight: cramped
+                    ? size.height * 0.5
+                    : (below ? spaceBelow : spaceAbove),
               ),
               child: _Bubble(
                 step: step,
@@ -315,35 +322,60 @@ class TourBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 4, 4, 12),
+      padding: const EdgeInsets.fromLTRB(16, 6, 6, 14),
       decoration: BoxDecoration(
-        color: YbColors.accentSoft,
-        borderRadius: BorderRadius.circular(YbRadius.md),
-        border: Border.all(color: YbColors.accent),
+        color: YbColors.surface,
+        borderRadius: BorderRadius.circular(YbRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text(title, style: YbText.display(size: 16))),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: YbColors.accentSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.tips_and_updates_outlined,
+                  size: 20,
+                  color: YbColors.ink,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: YbText.body(size: 16, weight: FontWeight.w600),
+                ),
+              ),
               IconButton(
                 tooltip: 'Tutup ajakan tur',
                 onPressed: onClose,
-                icon: Icon(Icons.close, size: 20, color: YbColors.ink),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: YbColors.muted,
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.only(right: 10),
-            child: Text(message, style: YbText.body(size: 13)),
+            child: Text(
+              message,
+              style: YbText.body(size: 14, color: YbColors.muted),
+            ),
           ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+          const SizedBox(height: 12),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
             onPressed: onStart,
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: const Text('Mulai tur'),
+            child: const Text('Mulai tur'),
           ),
         ],
       ),

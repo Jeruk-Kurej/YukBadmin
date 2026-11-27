@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/yb_widgets.dart';
@@ -13,6 +12,7 @@ import 'level_guide.dart';
 import 'pb_card.dart';
 import '../../../core/widgets/covers.dart';
 import '../../manage/data/manage_models.dart' show initialsOf;
+import '../../manage/pages/manage_widgets.dart' show openExternal;
 import '../../../core/widgets/photo.dart';
 
 /// P8 dan P9 Detail PB, digabung jadi satu halaman gulir.
@@ -95,7 +95,7 @@ class _DetailState extends State<_Detail> {
     final uri = Uri.parse(
       'https://www.google.com/maps/search/?api=1&query=$query',
     );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final ok = await openExternal(uri);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -133,7 +133,7 @@ class _DetailState extends State<_Detail> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
               sliver: SliverList.list(
                 children: [
                   Row(
@@ -147,7 +147,7 @@ class _DetailState extends State<_Detail> {
                         const SizedBox(width: 12),
                       ],
                       Expanded(
-                        child: Text(pb.name, style: YbText.display(size: 26)),
+                        child: Text(pb.name, style: YbText.display(size: 30)),
                       ),
                     ],
                   ),
@@ -199,29 +199,32 @@ class _DetailState extends State<_Detail> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _Stat(
-                          value: '${pb.memberCount}',
-                          label: 'dari ${pb.quota} member',
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: YbColors.surface,
+                      borderRadius: BorderRadius.circular(YbRadius.lg),
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          _Stat(
+                            value: '${pb.memberCount}/${pb.quota}',
+                            label: 'member',
+                          ),
+                          VerticalDivider(width: 1, color: YbColors.line),
+                          _Stat(
+                            value: formatRupiahShort(pb.feePerSession),
+                            label: 'per sesi',
+                          ),
+                          VerticalDivider(width: 1, color: YbColors.line),
+                          _Stat(
+                            value: '${dayShort[s.weekday]} ${s.start}',
+                            label: 'jadwal',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _Stat(
-                          value: formatRupiahShort(pb.feePerSession),
-                          label: 'per sesi',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _Stat(
-                          value: '${dayShort[s.weekday]} ${s.start}',
-                          label: 'jadwal',
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _FitCard(pb: pb),
@@ -235,92 +238,97 @@ class _DetailState extends State<_Detail> {
                     PhotoGallery(paths: pb.photoPaths),
                   ],
                   const _Heading('Jadwal'),
-                  for (final session in pb.sessions) ...[
-                    YbCard(
-                      child: Row(
-                        children: [
-                          YbTag(session.dayName, tone: YbTagTone.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              '${session.timeRange} · ${session.venue}',
-                              style: YbText.body(weight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                  YbGroup(
+                    children: [
+                      for (final session in pb.sessions)
+                        YbListRow(
+                          icon: Icons.event_outlined,
+                          title: session.dayName,
+                          subtitle: '${session.timeRange} · ${session.venue}',
+                        ),
+                    ],
+                  ),
                   const _Heading('Iuran'),
-                  if (pb.monthlyFee != null &&
-                      pb.memberTypes.contains(MemberType.tetap)) ...[
-                    _FeeCard(
-                      type: MemberType.tetap,
-                      amount: pb.monthlyFee!,
-                      unit: 'per bulan',
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  _FeeCard(
-                    type: pb.memberTypes.contains(MemberType.insidental)
-                        ? MemberType.insidental
-                        : MemberType.tetap,
-                    amount: pb.feePerSession,
-                    unit: 'per sesi',
+                  YbGroup(
+                    children: [
+                      if (pb.monthlyFee != null &&
+                          pb.memberTypes.contains(MemberType.tetap))
+                        _FeeRow(
+                          type: MemberType.tetap,
+                          amount: pb.monthlyFee!,
+                          unit: 'per bulan',
+                        ),
+                      _FeeRow(
+                        type: pb.memberTypes.contains(MemberType.insidental)
+                            ? MemberType.insidental
+                            : MemberType.tetap,
+                        amount: pb.feePerSession,
+                        unit: 'per sesi',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sewa lapangan sudah termasuk. Pembayaran di luar app.',
+                    style: YbText.body(size: 13, color: YbColors.muted),
                   ),
                   const _Heading('Lokasi'),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                    onPressed: () => _openMaps(context),
-                    icon: const Icon(Icons.place_outlined, size: 20),
-                    label: const Text('Buka di Google Maps'),
+                  YbGroup(
+                    children: [
+                      YbListRow(
+                        icon: Icons.place_outlined,
+                        title: 'Buka di Google Maps',
+                        subtitle: '${pb.venue}, ${pb.district}',
+                        onTap: () => _openMaps(context),
+                      ),
+                    ],
                   ),
                   const _Heading('Aturan main'),
-                  for (final rule in pb.rules)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
+                  if (pb.rules.isEmpty)
+                    Text(
+                      'Pengurus belum menulis aturan main.',
+                      style: YbText.body(color: YbColors.muted),
+                    )
+                  else
+                    YbCard(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: EdgeInsets.only(top: 2),
-                            child: Icon(
-                              Icons.check_circle_outline,
-                              size: 18,
-                              color: YbColors.primary,
+                          for (final (i, rule) in pb.rules.indexed)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: i == pb.rules.length - 1 ? 0 : 12,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 18,
+                                      color: YbColors.success,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(rule, style: YbText.body()),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(rule, style: YbText.body())),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  YbCard(
-                    child: Row(
-                      children: [
-                        YbAvatar(pb.manager.initials),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                pb.manager.name,
-                                style: YbText.body(
-                                  size: 15,
-                                  weight: FontWeight.w700,
-                                ),
-                              ),
-                              Text('Pengurus PB', style: YbText.label()),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  const _Heading('Pengurus'),
+                  YbGroup(
+                    children: [
+                      YbListRow(
+                        leading: YbAvatar(pb.manager.initials, size: 40),
+                        title: pb.manager.name,
+                        subtitle: 'Pengurus PB',
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -329,10 +337,7 @@ class _DetailState extends State<_Detail> {
         ),
       ),
       bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: YbColors.surface,
-          border: Border(top: BorderSide(color: YbColors.line)),
-        ),
+        decoration: BoxDecoration(color: YbColors.bg),
         child: SafeArea(
           top: false,
           child: Padding(
@@ -342,12 +347,9 @@ class _DetailState extends State<_Detail> {
                 SaveStar(pb: pb, boxed: true),
                 const SizedBox(width: 10),
                 Expanded(
-                  // Warna gelap, bukan merah: hasil UAT menyebut tombol merah
-                  // terlalu mendesak untuk orang yang baru mau bertanya.
+                  // Warna biru tenang, bukan merah: hasil UAT menyebut tombol
+                  // merah terlalu mendesak untuk orang yang baru mau bertanya.
                   child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: YbColors.night,
-                    ),
                     onPressed: () => showContactSheet(context, pb),
                     icon: const Icon(Icons.chat_bubble_outline, size: 20),
                     label: const Text('Tanya pengurus'),
@@ -369,8 +371,8 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 22, bottom: 10),
-    child: Text(text, style: YbText.display(size: 17)),
+    padding: const EdgeInsets.only(top: 28, bottom: 10),
+    child: YbSectionTitle(text),
   );
 }
 
@@ -382,35 +384,31 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return YbCard(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value, style: YbText.display(size: 17)),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: YbText.label(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value, style: YbText.display(size: 20)),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: YbText.body(size: 13, color: YbColors.muted),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _FeeCard extends StatelessWidget {
-  const _FeeCard({
-    required this.type,
-    required this.amount,
-    required this.unit,
-  });
+class _FeeRow extends StatelessWidget {
+  const _FeeRow({required this.type, required this.amount, required this.unit});
 
   final MemberType type;
   final int amount;
@@ -418,24 +416,22 @@ class _FeeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return YbCard(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                memberTypeTag(type),
-                const SizedBox(height: 8),
-                Text('Sewa lapangan dibayar sendiri', style: YbText.label()),
-              ],
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: memberTypeTag(type),
             ),
           ),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(formatRupiah(amount), style: YbText.display(size: 19)),
-              Text(unit, style: YbText.label()),
+              Text(formatRupiah(amount), style: YbText.display(size: 18)),
+              Text(unit, style: YbText.body(size: 13, color: YbColors.muted)),
             ],
           ),
         ],
@@ -493,16 +489,18 @@ class _FitCard extends ConsumerWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: YbColors.surface,
-        borderRadius: BorderRadius.circular(YbRadius.md),
-        border: Border.all(color: YbColors.line),
+        borderRadius: BorderRadius.circular(YbRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Cocok untukmu?', style: YbText.display(size: 17)),
+          Text(
+            'Cocok untukmu?',
+            style: YbText.body(size: 17, weight: FontWeight.w600),
+          ),
           const SizedBox(height: 10),
           for (final (ok, text) in checks)
             Padding(

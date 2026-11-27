@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/data/local_store.dart';
 import '../core/widgets/tour.dart';
 import '../features/manage/state/manage_providers.dart';
+import '../features/pb/state/providers.dart' show accountCacheKey;
 import 'router.dart';
 
 /// Bagian layar yang disorot tur. Tiap kunci dipasang di satu widget saja.
@@ -31,13 +32,9 @@ class PlayerTourSeenNotifier extends Notifier<bool> {
   @override
   bool build() {
     final store = ref.watch(localStoreProvider);
-    listenSelf((_, next) => writeCached(store, CacheKeys.playerTourSeen, next));
-    return readCached(
-      store,
-      CacheKeys.playerTourSeen,
-      (j) => j! as bool,
-      false,
-    );
+    final key = accountCacheKey(ref, CacheKeys.playerTourSeen);
+    listenSelf((_, next) => writeCached(store, key, next));
+    return readCached(store, key, (j) => j! as bool, false);
   }
 
   void markSeen() => state = true;
@@ -51,23 +48,24 @@ final playerTourSeenProvider = NotifierProvider<PlayerTourSeenNotifier, bool>(
 /// pintu menjadi pengurus PB.
 void startPlayerTour(BuildContext context, WidgetRef ref) {
   final router = ref.read(routerProvider);
+  final seen = ref.read(playerTourSeenProvider.notifier);
   final hasPb = ref.read(manageProvider).hasPb;
   startTour(
     context,
     go: router.go,
-    onClose: () => ref.read(playerTourSeenProvider.notifier).markSeen(),
+    onClose: seen.markSeen,
     steps: [
       TourStep(
         location: '/beranda',
         targets: [TourKeys.homeSearch],
         title: 'Cari PB',
-        body: 'Ketik nama PB atau area tempat kamu ingin main.',
+        body: 'Mulai dari PB di areamu. Semua PB bisa dicari di tab Cari.',
       ),
       TourStep(
         location: '/cari',
         targets: [TourKeys.searchFilter],
         title: 'Saring yang cocok',
-        body: 'Pilih level, hari, dan biaya. Tombol Peta menampilkan PB di sekitarmu.',
+        body: 'Pilih level, hari, dan biaya. Ikon peta menampilkan PB di sekitarmu.',
       ),
       TourStep(
         location: '/perlengkapan',
@@ -99,10 +97,12 @@ void startPlayerTour(BuildContext context, WidgetRef ref) {
 /// halaman PB yang dilihat calon member.
 void startManagerTour(BuildContext context, WidgetRef ref) {
   final router = ref.read(routerProvider);
+  // Disimpan sekarang: widget pemanggil bisa sudah dilepas saat tur selesai.
+  final guideSeen = ref.read(managerGuideSeenProvider.notifier);
   startTour(
     context,
     go: router.go,
-    onClose: () => ref.read(managerGuideSeenProvider.notifier).markSeen(),
+    onClose: guideSeen.markSeen,
     steps: [
       TourStep(
         location: '/kelola/member',

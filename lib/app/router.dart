@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_page.dart';
+import '../features/account/help_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/preferences_page.dart';
 import '../features/club/pages/club_pages.dart';
@@ -13,13 +14,16 @@ import '../features/gear/state/gear_providers.dart';
 import '../features/home/home_page.dart';
 import '../features/home/home_shell.dart';
 import '../features/manage/pages/dues_page.dart';
+import '../features/manage/pages/dues_system_page.dart';
 import '../features/manage/pages/import_page.dart';
 import '../features/manage/pages/manage_shell.dart';
 import '../features/manage/pages/managers_page.dart';
 import '../features/manage/pages/members_page.dart';
 import '../features/manage/pages/profile_page.dart';
+import '../features/manage/pages/refunds_page.dart';
 import '../features/manage/pages/register_pb_page.dart';
 import '../features/manage/pages/sessions_page.dart';
+import '../features/manage/pages/usage_page.dart';
 import '../features/manage/state/manage_providers.dart';
 import '../features/pb/pages/detail_page.dart';
 import '../features/pb/pages/saved_page.dart';
@@ -40,7 +44,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final location = state.matchedLocation;
       final signedIn = ref.read(sessionProvider) != null;
-      final atLogin = location == '/masuk';
+      final atLogin = location.startsWith('/masuk');
       if (!signedIn) return atLogin ? null : '/masuk';
       if (atLogin) return '/beranda';
 
@@ -56,7 +60,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/masuk', builder: (_, _) => const LoginPage()),
+      GoRoute(
+        path: '/masuk',
+        builder: (_, _) => const LoginPage(),
+        routes: [
+          GoRoute(path: 'email', builder: (_, _) => const EmailSignInPage()),
+        ],
+      ),
       GoRoute(
         path: '/preferensi',
         builder: (_, _) => const PreferencesPage(),
@@ -68,6 +78,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: '/tersimpan', builder: (_, _) => const SavedPage()),
+      GoRoute(path: '/bantuan', builder: (_, _) => const HelpPage()),
       GoRoute(
         path: '/pb-ku',
         builder: (_, _) => const ClubListPage(),
@@ -139,22 +150,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             ProductFormPage(productId: state.pathParameters['id']),
       ),
+      GoRoute(
+        path: '/toko-saya/profil',
+        builder: (_, _) => const ShopProfilePage(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => ShopShell(shell: shell),
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/toko-saya/profil',
-                builder: (_, _) => const ShopProfilePage(),
+                path: '/toko-saya/produk',
+                builder: (_, _) => const ShopProductsPage(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/toko-saya/produk',
-                builder: (_, _) => const ShopProductsPage(),
+                path: '/toko-saya/akun',
+                builder: (_, _) => const AccountPage(mode: AccountMode.shop),
               ),
             ],
           ),
@@ -167,6 +182,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/kelola/pengurus',
         builder: (_, _) => const ManagersPage(),
+      ),
+      GoRoute(path: '/kelola/profil', builder: (_, _) => const PbProfilePage()),
+      GoRoute(
+        path: '/kelola/sistem-iuran',
+        builder: (_, _) => const DuesSystemPage(),
+      ),
+      GoRoute(
+        path: '/kelola/pembatalan',
+        builder: (_, _) => const RefundsPage(),
+      ),
+      GoRoute(
+        path: '/sesi/:id/pemakaian',
+        builder: (_, state) => UsagePage(eventId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/sesi/:id/tagihan',
+        builder: (_, state) =>
+            BillSummaryPage(eventId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/kelola/lihat-member',
@@ -238,8 +271,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/kelola/profil',
-                builder: (_, _) => const PbProfilePage(),
+                path: '/kelola/akun',
+                builder: (_, _) => const AccountPage(mode: AccountMode.manager),
               ),
             ],
           ),

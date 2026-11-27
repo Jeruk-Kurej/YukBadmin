@@ -52,19 +52,23 @@ class _MembersPageState extends ConsumerState<MembersPage> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          PageHeader(
-            title: 'Member',
-            back: false,
-            trailing: OutlinedButton.icon(
+          YbPageTitle(
+            'Member',
+            subtitle: all.isEmpty ? null : '${all.length} member tercatat',
+            trailing: FilledButton.icon(
               key: TourKeys.membersAdd,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
               onPressed: () => context.push('/member/baru'),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add_rounded, size: 20),
               label: const Text('Tambah'),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           if (all.isEmpty)
             YbEmptyState(
               icon: Icons.people_outline,
@@ -80,7 +84,17 @@ class _MembersPageState extends ConsumerState<MembersPage> {
               style: YbText.body(size: 15),
               decoration: InputDecoration(
                 hintText: 'Cari nama member',
-                prefixIcon: Icon(Icons.search, color: YbColors.ink),
+                prefixIcon: Icon(Icons.search_rounded, color: YbColors.muted),
+                filled: true,
+                fillColor: YbColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(YbRadius.pill),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(YbRadius.pill),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -115,45 +129,27 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                   style: YbText.body(color: YbColors.muted),
                 ),
               ),
-            for (final m in shown) ...[
-              YbCard(
-                padding: const EdgeInsets.all(12),
-                onTap: () => context.push('/member/${m.id}'),
-                child: Row(
-                  children: [
-                    YbAvatar(m.initials, photoPath: m.photoPath),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.name,
-                            style: YbText.body(
-                              size: 15,
-                              weight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            m.level == null
-                                ? 'Level belum diisi'
-                                : 'Level ${m.level!.label}',
-                            style: YbText.label(),
-                          ),
-                        ],
+            if (shown.isNotEmpty)
+              YbGroup(
+                children: [
+                  for (final m in shown)
+                    YbListRow(
+                      leading: YbAvatar(
+                        m.initials,
+                        photoPath: m.photoPath,
+                        size: 40,
                       ),
+                      title: m.name,
+                      subtitle: m.level == null
+                          ? 'Level belum diisi'
+                          : 'Level ${m.level!.label}',
+                      trailing: memberTag(m),
+                      onTap: () => context.push('/member/${m.id}'),
                     ),
-                    const SizedBox(width: 8),
-                    memberTag(m),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
-            const SizedBox(height: 4),
-            FilledButton.icon(
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
               onPressed: () => context.push('/impor'),
               icon: const Icon(Icons.upload_outlined, size: 20),
               label: const Text('Impor dari catatan'),
@@ -230,7 +226,7 @@ class _MemberFormPageState extends ConsumerState<MemberFormPage> {
     final ok = await confirmDestructive(
       context,
       title: 'Hapus ${_original!.name}?',
-      message: 'Catatan kehadiran dan iuran member ini di semua sesi ikut terhapus dan tidak bisa dikembalikan.',
+      message: 'Kehadiran dan tagihan belum lunas member ini ikut terhapus dan tidak bisa dikembalikan. Iuran yang sudah dibayar tetap tercatat.',
       confirmLabel: 'Hapus member',
     );
     if (!ok || !mounted) return;
@@ -272,135 +268,139 @@ class _MemberFormPageState extends ConsumerState<MemberFormPage> {
             Expanded(
               child: Form(
                 key: _form,
-                child: ListView(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                  children: [
-                    PageHeader(
-                      title: editing ? 'Detail member' : 'Tambah member',
-                      trailing: editing
-                          ? IconButton(
-                              tooltip: 'Hapus member',
-                              onPressed: _delete,
-                              icon: Icon(
-                                Icons.delete_outline,
-                                color: YbColors.primary,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: Column(
-                        children: [
-                          PhotoCircle(
-                            path: _photoPath,
-                            tooltip: 'Ubah foto member',
-                            fallback: ValueListenableBuilder(
-                              valueListenable: _name,
-                              builder: (_, value, _) =>
-                                  YbAvatar(initialsOf(value.text), size: 76),
-                            ),
-                            onTap: () async {
-                              final change = await changePhoto(
-                                context,
-                                ref,
-                                title: 'Foto member',
-                                hasPhoto: _photoPath != null,
-                              );
-                              if (change != null) {
-                                setState(() => _photoPath = change.path);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _photoPath == null ? 'Tambah foto' : 'Ubah foto',
-                            style: YbText.label(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    LabeledField(
-                      label: 'Nama lengkap',
-                      child: TextFormField(
-                        controller: _name,
-                        autofocus: !editing,
-                        textCapitalization: TextCapitalization.words,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          final name = (v ?? '').trim();
-                          if (name.length < 2) return 'Isi nama member.';
-                          final taken = ref
-                              .read(manageProvider)
-                              .members
-                              .any(
-                                (m) =>
-                                    m.id != _original?.id &&
-                                    m.name.toLowerCase() == name.toLowerCase(),
-                              );
-                          return taken
-                              ? 'Sudah ada member dengan nama ini. Tambahkan pembeda, misalnya nama belakang.'
-                              : null;
-                        },
-                      ),
-                    ),
-                    LabeledField(
-                      label: 'Nomor WhatsApp (opsional)',
-                      helper: 'Dipakai untuk mengirim pengingat iuran.',
-                      child: TextFormField(
-                        controller: _whatsapp,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9+ -]'),
-                          ),
-                        ],
-                        decoration: const InputDecoration(
-                          hintText: '0813 1111 2222',
-                        ),
-                        validator: (v) =>
-                            (v ?? '').trim().isNotEmpty &&
-                                normalizeWhatsapp(v!) == null
-                            ? 'Nomor belum benar, misalnya 0813 1111 2222.'
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PageHeader(
+                        title: editing ? 'Detail member' : 'Tambah member',
+                        trailing: editing
+                            ? IconButton(
+                                tooltip: 'Hapus member',
+                                onPressed: _delete,
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: YbColors.primary,
+                                ),
+                              )
                             : null,
                       ),
-                    ),
-                    Text('Level', style: YbText.label()),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final level in Level.values)
-                          YbChoiceChip(
-                            round: true,
-                            label: level.label,
-                            selected: _level == level,
-                            onTap: () => setState(
-                              () => _level = _level == level ? null : level,
+                      const SizedBox(height: 20),
+                      Center(
+                        child: Column(
+                          children: [
+                            PhotoCircle(
+                              path: _photoPath,
+                              tooltip: 'Ubah foto member',
+                              fallback: ValueListenableBuilder(
+                                valueListenable: _name,
+                                builder: (_, value, _) =>
+                                    YbAvatar(initialsOf(value.text), size: 76),
+                              ),
+                              onTap: () async {
+                                final change = await changePhoto(
+                                  context,
+                                  ref,
+                                  title: 'Foto member',
+                                  hasPhoto: _photoPath != null,
+                                );
+                                if (change != null) {
+                                  setState(() => _photoPath = change.path);
+                                }
+                              },
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _photoPath == null ? 'Tambah foto' : 'Ubah foto',
+                              style: YbText.label(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      LabeledField(
+                        label: 'Nama lengkap',
+                        child: TextFormField(
+                          controller: _name,
+                          autofocus: !editing,
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            final name = (v ?? '').trim();
+                            if (name.length < 2) return 'Isi nama member.';
+                            final taken = ref
+                                .read(manageProvider)
+                                .members
+                                .any(
+                                  (m) =>
+                                      m.id != _original?.id &&
+                                      m.name.toLowerCase() ==
+                                          name.toLowerCase(),
+                                );
+                            return taken
+                                ? 'Sudah ada member dengan nama ini. Tambahkan pembeda, misalnya nama belakang.'
+                                : null;
+                          },
+                        ),
+                      ),
+                      LabeledField(
+                        label: 'Nomor WhatsApp (opsional)',
+                        helper: 'Dipakai untuk mengirim pengingat iuran.',
+                        child: TextFormField(
+                          controller: _whatsapp,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9+ -]'),
+                            ),
+                          ],
+                          decoration: const InputDecoration(
+                            hintText: '0813 1111 2222',
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Text('Jenis member', style: YbText.label()),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final type in MemberType.values)
-                          YbChoiceChip(
-                            label: type == MemberType.tetap
-                                ? 'Tetap'
-                                : 'Insidental',
-                            selected: _type == type,
-                            onTap: () => setState(() => _type = type),
-                          ),
-                      ],
-                    ),
-                  ],
+                          validator: (v) =>
+                              (v ?? '').trim().isNotEmpty &&
+                                  normalizeWhatsapp(v!) == null
+                              ? 'Nomor belum benar, misalnya 0813 1111 2222.'
+                              : null,
+                        ),
+                      ),
+                      Text('Level', style: YbText.label()),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final level in Level.values)
+                            YbChoiceChip(
+                              round: true,
+                              label: level.label,
+                              selected: _level == level,
+                              onTap: () => setState(
+                                () => _level = _level == level ? null : level,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text('Jenis member', style: YbText.label()),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final type in MemberType.values)
+                            YbChoiceChip(
+                              label: type == MemberType.tetap
+                                  ? 'Tetap'
+                                  : 'Insidental',
+                              selected: _type == type,
+                              onTap: () => setState(() => _type = type),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -128,6 +128,21 @@ Future<PhotoChange?> changePhoto(
   }
 }
 
+/// Folder dokumen app, diisi sekali di `main`.
+String? photoDocumentsDir;
+
+/// Path foto yang masih bisa dibuka. Di iOS letak folder app bisa berubah
+/// setelah update, jadi foto yang disalin app dicari lagi berdasarkan nama
+/// berkasnya di folder foto yang sekarang.
+String resolvePhotoPath(String path, String? documentsDir) {
+  if (documentsDir == null ||
+      p.basename(p.dirname(path)) != 'foto' ||
+      File(path).existsSync()) {
+    return path;
+  }
+  return p.join(documentsDir, 'foto', p.basename(path));
+}
+
 /// Foto dari berkas di perangkat. Kalau [path] kosong atau berkasnya hilang,
 /// [fallback] yang ditampilkan.
 class YbPhoto extends StatelessWidget {
@@ -146,7 +161,7 @@ class YbPhoto extends StatelessWidget {
   Widget build(BuildContext context) {
     if (path == null || path!.isEmpty) return fallback;
     return Image.file(
-      File(path!),
+      File(resolvePhotoPath(path!, photoDocumentsDir)),
       fit: fit,
       width: double.infinity,
       height: double.infinity,

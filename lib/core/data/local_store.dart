@@ -65,6 +65,9 @@ abstract final class CacheKeys {
   static const themeMode = 'v1.themeMode';
   static const membership = 'v1.membership';
   static const playerTourSeen = 'v1.playerTourSeen';
+  static const profilePublic = 'v1.profilePublic';
+  static const contacted = 'v1.contacted';
+  static const accounts = 'v1.accounts';
 }
 
 /// Membaca nilai JSON dari cache. Data rusak atau versi lama diabaikan

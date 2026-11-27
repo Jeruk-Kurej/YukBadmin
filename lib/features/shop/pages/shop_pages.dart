@@ -23,40 +23,16 @@ class ShopShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const tabs = [
-      (Icons.storefront_outlined, 'Profil'),
-      (Icons.inventory_2_outlined, 'Produk'),
+      (Icons.inventory_2_outlined, Icons.inventory_2, 'Produk'),
+      (Icons.person_outline, Icons.person, 'Akun'),
     ];
     return Scaffold(
       body: shell,
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          backgroundColor: YbColors.surface,
-          indicatorColor: YbColors.primarySoft,
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (s) => YbText.body(
-              size: 12,
-              color: s.contains(WidgetState.selected)
-                  ? YbColors.primary
-                  : YbColors.muted,
-              weight: s.contains(WidgetState.selected)
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-            ),
-          ),
-        ),
-        child: NavigationBar(
-          selectedIndex: shell.currentIndex,
-          onDestinationSelected: (i) =>
-              shell.goBranch(i, initialLocation: i == shell.currentIndex),
-          destinations: [
-            for (final t in tabs)
-              NavigationDestination(
-                icon: Icon(t.$1, color: YbColors.muted),
-                selectedIcon: Icon(t.$1, color: YbColors.primary),
-                label: t.$2,
-              ),
-          ],
-        ),
+      bottomNavigationBar: YbTabBar(
+        tabs: tabs,
+        currentIndex: shell.currentIndex,
+        onTap: (i) =>
+            shell.goBranch(i, initialLocation: i == shell.currentIndex),
       ),
     );
   }
@@ -93,29 +69,24 @@ class _ShopProfilePageState extends ConsumerState<ShopProfilePage> {
   Widget build(BuildContext context) {
     final shop = ref.watch(ownShopProvider.select((s) => s.shop));
     if (shop == null) return const SizedBox.shrink();
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        children: [
-          PageHeader(
-            title: 'Profil toko',
-            back: false,
-            trailing: OutlinedButton.icon(
-              onPressed: () => context.push('/toko/${shop.id}'),
-              icon: const Icon(Icons.visibility_outlined, size: 18),
-              label: const Text('Lihat'),
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          children: [
+            PageHeader(
+              title: 'Profil toko',
+              trailing: TextButton(
+                onPressed: () => context.push('/toko/${shop.id}'),
+                child: const Text('Lihat'),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          RoleSwitchButton(
-            label: 'Beralih ke mode pemain',
-            onPressed: () => context.go('/beranda'),
-          ),
-          const SizedBox(height: 16),
-          ShopFields(key: _fields, formKey: _form, initial: shop),
-          FilledButton(onPressed: _save, child: const Text('Simpan profil')),
-        ],
+            const SizedBox(height: 16),
+            ShopFields(key: _fields, formKey: _form, initial: shop),
+            FilledButton(onPressed: _save, child: const Text('Simpan profil')),
+          ],
+        ),
       ),
     );
   }
@@ -151,24 +122,23 @@ class _ShopProductsPageState extends ConsumerState<ShopProductsPage> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          PageHeader(
-            title: 'Produk',
-            back: false,
+          YbPageTitle(
+            'Produk',
             trailing: FilledButton.icon(
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              style: FilledButton.styleFrom(
+                backgroundColor: YbColors.surface,
+                foregroundColor: YbColors.ink,
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
               onPressed: () => context.push('/toko-saya/produk/baru'),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add_rounded, size: 20),
               label: const Text('Tambah'),
             ),
           ),
-          const SizedBox(height: 12),
-          RoleSwitchButton(
-            label: 'Beralih ke mode pemain',
-            onPressed: () => context.go('/beranda'),
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           if (all.isEmpty)
             YbEmptyState(
               icon: Icons.inventory_2_outlined,
@@ -184,7 +154,17 @@ class _ShopProductsPageState extends ConsumerState<ShopProductsPage> {
               style: YbText.body(size: 15),
               decoration: InputDecoration(
                 hintText: 'Cari produk',
-                prefixIcon: Icon(Icons.search, color: YbColors.ink),
+                prefixIcon: Icon(Icons.search_rounded, color: YbColors.muted),
+                filled: true,
+                fillColor: YbColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(YbRadius.pill),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(YbRadius.pill),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -215,75 +195,69 @@ class _ShopProductsPageState extends ConsumerState<ShopProductsPage> {
                   style: YbText.body(color: YbColors.muted),
                 ),
               ),
-            for (final p in shown) ...[
-              YbCard(
-                padding: const EdgeInsets.all(10),
-                onTap: () => context.push('/toko-saya/produk/${p.id}'),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(YbRadius.sm),
-                      child: SizedBox(
-                        width: 52,
-                        height: 52,
-                        child: ProductImage(product: p),
+            if (shown.isNotEmpty) ...[
+              YbSectionTitle('${shown.length} produk'),
+              const SizedBox(height: 10),
+              YbGroup(
+                children: [
+                  for (final p in shown)
+                    YbListRow(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(YbRadius.md),
+                        child: SizedBox(
+                          width: 52,
+                          height: 52,
+                          child: ProductImage(product: p),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      title: p.name,
+                      subtitle: formatRupiah(p.price),
+                      onTap: () => context.push('/toko-saya/produk/${p.id}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            p.name,
-                            style: YbText.body(
-                              size: 15,
-                              weight: FontWeight.w700,
+                          // Stok paling sering berubah, jadi bisa diganti langsung dari daftar.
+                          Semantics(
+                            button: true,
+                            label:
+                                '${p.name}: ${p.inStock ? 'Tersedia' : 'Habis'}. Ketuk untuk mengubah stok.',
+                            excludeSemantics: true,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                YbRadius.pill,
+                              ),
+                              onTap: () {
+                                ref
+                                    .read(ownShopProvider.notifier)
+                                    .setStock(p.id, !p.inStock);
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${p.name} sekarang ${p.inStock ? 'Habis' : 'Tersedia'}',
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                child: stockTag(p.inStock),
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          Text(formatRupiah(p.price), style: YbText.label()),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Stok paling sering berubah, jadi bisa diganti langsung dari daftar.
-                    Semantics(
-                      button: true,
-                      label:
-                          '${p.name}: ${p.inStock ? 'Ready' : 'Habis'}. Ketuk untuk mengubah stok.',
-                      excludeSemantics: true,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(YbRadius.pill),
-                        onTap: () {
-                          ref
-                              .read(ownShopProvider.notifier)
-                              .setStock(p.id, !p.inStock);
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${p.name} sekarang ${p.inStock ? 'Habis' : 'Ready'}',
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: stockTag(p.inStock),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
             ],
             Text(
-              'Ketuk label Ready atau Habis untuk mengubah stok.',
+              'Ketuk label Tersedia atau Habis untuk mengubah stok.',
               style: YbText.label(),
             ),
           ],
@@ -416,225 +390,232 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
             Expanded(
               child: Form(
                 key: _form,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                  children: [
-                    PageHeader(
-                      title: editing ? 'Ubah produk' : 'Tambah produk',
-                      trailing: editing
-                          ? IconButton(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const YbBackButton(),
+                          const Spacer(),
+                          if (editing)
+                            IconButton(
                               tooltip: 'Hapus produk',
                               onPressed: _delete,
                               icon: Icon(
-                                Icons.delete_outline,
-                                color: YbColors.primary,
+                                Icons.delete_outline_rounded,
+                                color: YbColors.error,
                               ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 18),
-                    LabeledField(
-                      label: 'Foto produk',
-                      helper: 'Opsional. Tanpa foto, gambar contoh sesuai kategori yang dipakai.',
-                      child: Semantics(
-                        button: true,
-                        label: _photoPath == null
-                            ? 'Tambah foto produk'
-                            : 'Ubah foto produk',
-                        excludeSemantics: true,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(YbRadius.md),
-                          onTap: () async {
-                            final change = await changePhoto(
-                              context,
-                              ref,
-                              title: 'Foto produk',
-                              hasPhoto: _photoPath != null,
-                            );
-                            if (change != null) {
-                              setState(() => _photoPath = change.path);
-                            }
-                          },
-                          child: ClipRRect(
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      YbPageTitle(editing ? 'Ubah produk' : 'Tambah produk'),
+                      const SizedBox(height: 20),
+                      LabeledField(
+                        label: 'Foto produk',
+                        helper: 'Opsional. Tanpa foto, gambar contoh sesuai kategori yang dipakai.',
+                        child: Semantics(
+                          button: true,
+                          label: _photoPath == null
+                              ? 'Tambah foto produk'
+                              : 'Ubah foto produk',
+                          excludeSemantics: true,
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(YbRadius.md),
-                            child: SizedBox(
-                              height: 160,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  YbPhoto(
-                                    path: _photoPath,
-                                    fallback: ProductArt(
-                                      category: _category,
-                                      seed: _name.text.length,
+                            onTap: () async {
+                              final change = await changePhoto(
+                                context,
+                                ref,
+                                title: 'Foto produk',
+                                hasPhoto: _photoPath != null,
+                              );
+                              if (change != null) {
+                                setState(() => _photoPath = change.path);
+                              }
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(YbRadius.md),
+                              child: SizedBox(
+                                height: 160,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    YbPhoto(
+                                      path: _photoPath,
+                                      fallback: ProductArt(
+                                        category: _category,
+                                        seed: _name.text.length,
+                                      ),
                                     ),
-                                  ),
-                                  Positioned(
-                                    right: 10,
-                                    bottom: 10,
-                                    child: YbTag(
-                                      _photoPath == null
-                                          ? 'Tambah foto'
-                                          : 'Ubah foto',
-                                      tone: YbTagTone.neutral,
-                                      icon: Icons.photo_camera_outlined,
+                                    Positioned(
+                                      right: 10,
+                                      bottom: 10,
+                                      child: YbTag(
+                                        _photoPath == null
+                                            ? 'Tambah foto'
+                                            : 'Ubah foto',
+                                        tone: YbTagTone.neutral,
+                                        icon: Icons.photo_camera_outlined,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    LabeledField(
-                      label: 'Nama produk',
-                      child: TextFormField(
-                        controller: _name,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          hintText: 'Raket Falcon 80',
+                      LabeledField(
+                        label: 'Nama produk',
+                        child: TextFormField(
+                          controller: _name,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            hintText: 'Raket Falcon 80',
+                          ),
+                          validator: (v) => (v ?? '').trim().length < 3
+                              ? 'Isi nama produk.'
+                              : null,
                         ),
-                        validator: (v) => (v ?? '').trim().length < 3
-                            ? 'Isi nama produk.'
-                            : null,
                       ),
-                    ),
-                    LabeledField(
-                      label: 'Harga',
-                      child: TextFormField(
-                        controller: _price,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: const InputDecoration(
-                          prefixText: 'Rp ',
-                          hintText: '1250000',
+                      LabeledField(
+                        label: 'Harga',
+                        child: TextFormField(
+                          controller: _price,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: const InputDecoration(
+                            prefixText: 'Rp ',
+                            hintText: '1250000',
+                          ),
+                          validator: (v) {
+                            final price = parseRupiah(v ?? '');
+                            if (price == null || price == 0) {
+                              return 'Isi harga produk.';
+                            }
+                            if (price > 100000000) {
+                              return 'Harga terlalu besar, cek lagi.';
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (v) {
-                          final price = parseRupiah(v ?? '');
-                          if (price == null || price == 0) {
-                            return 'Isi harga produk.';
-                          }
-                          if (price > 100000000) {
-                            return 'Harga terlalu besar, cek lagi.';
-                          }
-                          return null;
-                        },
                       ),
-                    ),
-                    Text('Kategori', style: YbText.label()),
-                    const SizedBox(height: 8),
-                    _chips(
-                      GearCategory.values,
-                      (c) => c.label,
-                      _category,
-                      (c) => setState(() {
-                        _category = c;
-                        _specError = null;
-                      }),
-                    ),
-                    const SizedBox(height: 18),
-                    if (_category == GearCategory.raket) ...[
-                      Text('Berat', style: YbText.label()),
+                      Text('Kategori', style: YbText.label()),
                       const SizedBox(height: 8),
                       _chips(
-                        RacketWeight.values,
-                        (w) => '${w.label} · ${w.grams}',
-                        _weight,
-                        (w) => setState(() => _weight = w),
+                        GearCategory.values,
+                        (c) => c.label,
+                        _category,
+                        (c) => setState(() {
+                          _category = c;
+                          _specError = null;
+                        }),
                       ),
-                      const SizedBox(height: 14),
-                      Text('Titik berat', style: YbText.label()),
-                      const SizedBox(height: 8),
-                      _chips(
-                        RacketBalance.values,
-                        (b) => b.label,
-                        _balance,
-                        (b) => setState(() => _balance = b),
+                      const SizedBox(height: 18),
+                      if (_category == GearCategory.raket) ...[
+                        Text('Berat', style: YbText.label()),
+                        const SizedBox(height: 8),
+                        _chips(
+                          RacketWeight.values,
+                          (w) => '${w.label} · ${w.grams}',
+                          _weight,
+                          (w) => setState(() => _weight = w),
+                        ),
+                        const SizedBox(height: 14),
+                        Text('Titik berat', style: YbText.label()),
+                        const SizedBox(height: 8),
+                        _chips(
+                          RacketBalance.values,
+                          (b) => b.label,
+                          _balance,
+                          (b) => setState(() => _balance = b),
+                        ),
+                        const SizedBox(height: 14),
+                        Text('Kelenturan batang', style: YbText.label()),
+                        const SizedBox(height: 8),
+                        _chips(
+                          RacketFlex.values,
+                          (f) => f.label,
+                          _flex,
+                          (f) => setState(() => _flex = f),
+                        ),
+                      ],
+                      if (_category == GearCategory.sepatu) ...[
+                        Text('Ukuran tersedia (EU)', style: YbText.label()),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (var size = 35; size <= 47; size++)
+                              YbChoiceChip(
+                                round: true,
+                                label: '$size',
+                                selected: _sizes.contains(size),
+                                onTap: () => setState(() {
+                                  if (!_sizes.add(size)) _sizes.remove(size);
+                                }),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (_category == GearCategory.senar) ...[
+                        Text('Jenis senar', style: YbText.label()),
+                        const SizedBox(height: 8),
+                        _chips(
+                          StringType.values,
+                          (t) => t.label,
+                          _stringType,
+                          (t) => setState(() => _stringType = t),
+                        ),
+                      ],
+                      if (_category != GearCategory.grip)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Spesifikasi dipakai untuk menyarankan produk ke pemain yang cocok.',
+                            style: YbText.label(),
+                          ),
+                        ),
+                      if (_specError != null) FieldError(_specError!),
+                      const SizedBox(height: 18),
+                      LabeledField(
+                        label: 'Deskripsi',
+                        child: TextFormField(
+                          controller: _description,
+                          minLines: 2,
+                          maxLines: 5,
+                          maxLength: 300,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            hintText: 'Ringan, cocok untuk gaya main seimbang.',
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      Text('Kelenturan batang', style: YbText.label()),
-                      const SizedBox(height: 8),
-                      _chips(
-                        RacketFlex.values,
-                        (f) => f.label,
-                        _flex,
-                        (f) => setState(() => _flex = f),
-                      ),
-                    ],
-                    if (_category == GearCategory.sepatu) ...[
-                      Text('Ukuran tersedia (EU)', style: YbText.label()),
+                      Text('Status stok', style: YbText.label()),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        runSpacing: 8,
                         children: [
-                          for (var size = 35; size <= 47; size++)
-                            YbChoiceChip(
-                              round: true,
-                              label: '$size',
-                              selected: _sizes.contains(size),
-                              onTap: () => setState(() {
-                                if (!_sizes.add(size)) _sizes.remove(size);
-                              }),
-                            ),
+                          YbChoiceChip(
+                            icon: Icons.check,
+                            label: 'Ready',
+                            selected: _inStock,
+                            onTap: () => setState(() => _inStock = true),
+                          ),
+                          YbChoiceChip(
+                            label: 'Habis',
+                            selected: !_inStock,
+                            onTap: () => setState(() => _inStock = false),
+                          ),
                         ],
                       ),
                     ],
-                    if (_category == GearCategory.senar) ...[
-                      Text('Jenis senar', style: YbText.label()),
-                      const SizedBox(height: 8),
-                      _chips(
-                        StringType.values,
-                        (t) => t.label,
-                        _stringType,
-                        (t) => setState(() => _stringType = t),
-                      ),
-                    ],
-                    if (_category != GearCategory.grip)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          'Spesifikasi dipakai untuk menyarankan produk ke pemain yang cocok.',
-                          style: YbText.label(),
-                        ),
-                      ),
-                    if (_specError != null) FieldError(_specError!),
-                    const SizedBox(height: 18),
-                    LabeledField(
-                      label: 'Deskripsi',
-                      child: TextFormField(
-                        controller: _description,
-                        minLines: 2,
-                        maxLines: 5,
-                        maxLength: 300,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                          hintText: 'Ringan, cocok untuk gaya main seimbang.',
-                        ),
-                      ),
-                    ),
-                    Text('Status stok', style: YbText.label()),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        YbChoiceChip(
-                          icon: Icons.check,
-                          label: 'Ready',
-                          selected: _inStock,
-                          onTap: () => setState(() => _inStock = true),
-                        ),
-                        YbChoiceChip(
-                          label: 'Habis',
-                          selected: !_inStock,
-                          onTap: () => setState(() => _inStock = false),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

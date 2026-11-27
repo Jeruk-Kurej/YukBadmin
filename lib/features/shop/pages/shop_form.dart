@@ -194,6 +194,9 @@ class ShopFieldsState extends ConsumerState<ShopFields> {
             child: TextFormField(
               controller: _maps,
               keyboardType: TextInputType.url,
+              validator: (v) => (v ?? '').trim().isEmpty || webUri(v!) != null
+                  ? null
+                  : 'Tempel tautan dari Google Maps, atau kosongkan.',
               decoration: InputDecoration(
                 hintText: 'maps.app.goo.gl/...',
                 prefixIcon: Icon(Icons.map_outlined, color: YbColors.ink),
@@ -235,22 +238,18 @@ class _RegisterShopPageState extends ConsumerState<RegisterShopPage> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                 children: [
-                  const PageHeader(title: 'Daftarkan toko'),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: YbColors.accentSoft,
-                      borderRadius: BorderRadius.circular(YbRadius.md),
-                    ),
-                    child: Text(
-                      'Untuk toko perlengkapan badminton. Setelah terdaftar, produkmu muncul di tab Perlengkapan dan bisa disarankan ke pemain.',
-                      style: YbText.body(size: 13),
-                    ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: YbBackButton(),
                   ),
                   const SizedBox(height: 16),
+                  const YbPageTitle(
+                    'Daftarkan toko',
+                    subtitle: 'Produkmu tampil di Perlengkapan dan bisa disarankan ke pemain yang cocok.',
+                  ),
+                  const SizedBox(height: 20),
                   ShopFields(key: _fields, formKey: _form),
                 ],
               ),

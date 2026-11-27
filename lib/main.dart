@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'app/theme_mode.dart';
 import 'core/data/local_store.dart';
+import 'core/widgets/photo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Cache dibuka sebelum app tampil supaya data tersimpan langsung terbaca.
   final store = await PrefsLocalStore.open();
+  photoDocumentsDir = (await getApplicationDocumentsDirectory()).path;
   runApp(
     ProviderScope(
       overrides: [localStoreProvider.overrideWithValue(store)],

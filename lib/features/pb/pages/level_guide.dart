@@ -108,7 +108,10 @@ Future<void> showLevelGuide(
                     ),
                     child: Text(
                       level.label,
-                      style: YbText.display(size: 16, color: Colors.white),
+                      style: YbText.display(
+                        size: 16,
+                        color: YbColors.onPrimary,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
