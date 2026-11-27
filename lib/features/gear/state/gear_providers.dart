@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/local_store.dart';
+import '../../pb/state/providers.dart' show accountCacheKey;
 import '../data/gear_codec.dart';
 import '../data/gear_models.dart';
 import '../data/gear_repository.dart';
@@ -26,10 +27,11 @@ class OwnShopNotifier extends Notifier<OwnShopState> {
   @override
   OwnShopState build() {
     final store = ref.watch(localStoreProvider);
+    final key = accountCacheKey(ref, CacheKeys.ownShop);
     listenSelf(
       (_, next) => writeCached(
         store,
-        CacheKeys.ownShop,
+        key,
         next.shop == null
             ? null
             : {
@@ -38,7 +40,7 @@ class OwnShopNotifier extends Notifier<OwnShopState> {
               },
       ),
     );
-    final restored = readCached(store, CacheKeys.ownShop, (json) {
+    final restored = readCached(store, key, (json) {
       final m = json! as Map<String, Object?>;
       return OwnShopState(
         shop: shopFromJson(m['shop']),

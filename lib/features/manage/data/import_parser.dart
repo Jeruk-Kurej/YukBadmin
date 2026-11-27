@@ -37,6 +37,17 @@ class RuleBasedNoteParser implements NoteParser {
     r'\b(insidental|insidentil|tamu|per sesi|harian|drop ?in)\b',
     caseSensitive: false,
   );
+  static final _phone = RegExp(
+    r'(?<!\d)(?:\+?62|0)[ -]?8\d(?:[ .-]?\d){6,11}(?!\d)',
+  );
+  static final _clock = RegExp(
+    r'(?<![\d.,])(?:(?:jam|pukul)\s*)?(?:[01]?\d|2[0-3])[.:][0-5]\d(?![.,]?\d)',
+    caseSensitive: false,
+  );
+  static final _headingWords = RegExp(
+    r'\b(daftar|list|jadwal|absen|absensi|hadir|rekap|iuran|total|latihan|sparing|senin|selasa|rabu|kamis|jumat|sabtu)\b',
+    caseSensitive: false,
+  );
   static final _separators = RegExp(r'[|;\t,:()\[\]–—-]+');
 
   @override
@@ -47,7 +58,12 @@ class RuleBasedNoteParser implements NoteParser {
     for (final raw in text.split('\n')) {
       var line = raw.trim();
       if (line.isEmpty) continue;
-      line = line.replaceFirst(_chatPrefix, '').replaceFirst(_bullet, '');
+      line = line
+          .replaceFirst(_chatPrefix, '')
+          .replaceFirst(_bullet, '')
+          // Nomor HP dan jam bukan nominal maupun bagian dari nama.
+          .replaceAll(_phone, ' ')
+          .replaceAll(_clock, ' ');
       if (line.isEmpty) continue;
 
       final unpaid = _unpaidWords.hasMatch(line);
@@ -85,6 +101,8 @@ class RuleBasedNoteParser implements NoteParser {
       String? reason;
       if (uncertain) {
         reason = 'Ada tanda tanya di nama, cek dulu';
+      } else if (_headingWords.hasMatch(name)) {
+        reason = 'Baris ini mungkin judul, cek dulu';
       } else if (letters < 3) {
         reason = 'Nama terlalu pendek, cek dulu';
       } else if (name.split(' ').length > 4) {

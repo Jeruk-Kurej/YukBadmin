@@ -19,15 +19,14 @@ class MembershipNotifier extends Notifier<List<Membership>> {
     final store = ref.watch(localStoreProvider);
     final user = ref.watch(sessionProvider);
     if (user == null) return const [];
+    final key = accountCacheKey(ref, CacheKeys.membership);
     listenSelf(
-      (_, next) => writeCached(store, CacheKeys.membership, {
+      (_, next) => writeCached(store, key, {
         'email': user.email,
         'items': [for (final m in next) membershipToJson(m)],
       }),
     );
-    final cached = readCached<List<Membership>?>(store, CacheKeys.membership, (
-      json,
-    ) {
+    final cached = readCached<List<Membership>?>(store, key, (json) {
       final m = json! as Map<String, Object?>;
       // Cache milik akun lain tidak dipakai.
       if (m['email'] != user.email) return null;
@@ -57,17 +56,26 @@ class MembershipNotifier extends Notifier<List<Membership>> {
     ];
   }
 
-  /// Menjawab ikut atau tidak. Null menghapus jawaban.
-  void setRsvp(String pbId, String eventId, Rsvp? rsvp) =>
-      _updateEvent(pbId, eventId, (e, me) {
-        final rsvps = {...e.rsvps};
-        if (rsvp == null) {
-          rsvps.remove(me);
-        } else {
-          rsvps[me] = rsvp;
-        }
-        return e.copyWith(rsvps: rsvps);
-      });
+  /// Menjawab ikut atau batal, mengikuti aturan iuran PB-nya. Null
+  /// menghapus jawaban.
+  void setRsvp(String pbId, String eventId, Rsvp? rsvp) {
+    final m = state.where((x) => x.pbId == pbId).firstOrNull;
+    if (m == null) return;
+    final now = ref.read(nowProvider)();
+    _updateEvent(
+      pbId,
+      eventId,
+      (e, me) => switch (rsvp) {
+        Rsvp.ikut => e.confirm(me, m.duesSystem, m.fee),
+        Rsvp.tidak => e.cancel(me, now, m.duesSystem),
+        null => e.copyWith(rsvps: {...e.rsvps}..remove(me)),
+      },
+    );
+  }
+
+  /// Batal mendadak: mengajukan pengembalian ke pengurus dengan alasan.
+  void requestRefund(String pbId, String eventId, String reason) =>
+      _updateEvent(pbId, eventId, (e, me) => e.requestRefund(me, reason));
 
   /// Mengirim bukti transfer untuk iuran yang belum lunas.
   void submitProof(String pbId, String eventId, String path) {

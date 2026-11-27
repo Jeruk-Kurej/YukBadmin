@@ -11,9 +11,17 @@ class Membership {
     required this.memberId,
     required this.type,
     this.events = const [],
+    this.fee = 0,
+    this.duesSystem = const DuesSystem(),
   });
 
   final String pbId;
+
+  /// Biaya per sesi PB ini.
+  final int fee;
+
+  /// Aturan iuran PB ini (cara bayar dan batas pembatalan).
+  final DuesSystem duesSystem;
 
   /// Id member di catatan pengurus.
   final String memberId;
@@ -28,6 +36,8 @@ class Membership {
     memberId: memberId,
     type: type,
     events: events ?? this.events,
+    fee: fee,
+    duesSystem: duesSystem,
   );
 }
 
@@ -41,7 +51,8 @@ extension MembershipSummary on Membership {
   /// Iuran milik member ini yang belum lunas.
   List<(SessionEvent, Due)> unpaidDues() => [
     for (final e in events)
-      if (e.dues[memberId] case final due? when !due.paid) (e, due),
+      if (e.dues[memberId] case final due? when !due.paid && due.billable)
+        (e, due),
   ];
 
   /// Sesi mendatang yang belum dijawab ikut atau tidak.
@@ -56,6 +67,8 @@ Map<String, Object?> membershipToJson(Membership m) => {
   'memberId': m.memberId,
   'type': m.type.name,
   'events': [for (final e in m.events) eventToJson(e)],
+  'fee': m.fee,
+  'duesSystem': duesSystemToJson(m.duesSystem),
 };
 
 Membership membershipFromJson(Object? json) {
@@ -65,5 +78,9 @@ Membership membershipFromJson(Object? json) {
     memberId: m['memberId']! as String,
     type: MemberType.values.byName(m['type']! as String),
     events: [for (final e in m['events']! as List) eventFromJson(e)],
+    fee: (m['fee'] as int?) ?? 0,
+    duesSystem: m['duesSystem'] == null
+        ? const DuesSystem()
+        : duesSystemFromJson(m['duesSystem']),
   );
 }

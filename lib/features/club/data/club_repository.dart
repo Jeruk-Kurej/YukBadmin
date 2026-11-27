@@ -18,8 +18,13 @@ class SeedMembershipRepository implements MembershipRepository {
   static const memberId = 'm-saya';
   static const _fee = 150000;
 
+  /// Hanya akun contoh ini yang punya data member contoh.
+  static const demoEmail = 'bryan@contoh.id';
+
   @override
   List<Membership> forUser(String email, DateTime now) {
+    // Akun lain belum jadi member PB mana pun, jadi tidak boleh punya tagihan.
+    if (email.toLowerCase() != demoEmail) return const [];
     // Jadwal PB Smash Surabaya: Rabu 19.00–22.00 dan Sabtu 08.00–11.00.
     final slots = [(3, 19, 180), (6, 8, 180)];
     final past = _occurrences(now, slots, forward: false).take(2).toList();
@@ -33,6 +38,7 @@ class SeedMembershipRepository implements MembershipRepository {
         pbId: pbId,
         memberId: memberId,
         type: MemberType.tetap,
+        fee: _fee,
         events: [
           for (final (i, start) in past.indexed)
             SessionEvent(

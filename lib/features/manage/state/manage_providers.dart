@@ -4,6 +4,7 @@ import '../../../core/data/local_store.dart';
 import '../data/manage_codec.dart';
 
 import '../../pb/data/pb_models.dart';
+import '../../pb/state/providers.dart' show accountCacheKey;
 import '../data/import_parser.dart';
 import '../data/manage_models.dart';
 
@@ -17,8 +18,9 @@ class ManagerGuideSeenNotifier extends Notifier<bool> {
   @override
   bool build() {
     final store = ref.watch(localStoreProvider);
-    listenSelf((_, next) => writeCached(store, CacheKeys.guideSeen, next));
-    return readCached(store, CacheKeys.guideSeen, (j) => j! as bool, false);
+    final key = accountCacheKey(ref, CacheKeys.guideSeen);
+    listenSelf((_, next) => writeCached(store, key, next));
+    return readCached(store, key, (j) => j! as bool, false);
   }
 
   void markSeen() => state = true;
@@ -40,19 +42,23 @@ class ManageNotifier extends Notifier<ManageState> {
   @override
   ManageState build() {
     final store = ref.watch(localStoreProvider);
-    listenSelf(
-      (_, next) =>
-          writeCached(store, CacheKeys.manage, manageStateToJson(next)),
-    );
+    final key = accountCacheKey(ref, CacheKeys.manage);
+    listenSelf((_, next) => writeCached(store, key, manageStateToJson(next)));
     final restored = readCached(
       store,
-      CacheKeys.manage,
+      key,
       manageStateFromJson,
       const ManageState(),
     );
     _seq = maxIdSeq([
       ...restored.members.map((m) => m.id),
       ...restored.events.map((e) => e.id),
+      // Id member yang sudah dihapus masih tercatat di riwayat sesi. Ikut
+      // dihitung supaya member baru tidak mewarisi riwayatnya.
+      for (final e in restored.events) ...[
+        ...e.dues.keys,
+        for (final m in e.matches) ...m.players,
+      ],
       ...restored.coManagers.map((c) => c.id),
     ]);
     return restored;
@@ -109,14 +115,21 @@ class ManageNotifier extends Notifier<ManageState> {
     for (final m in state.members) m.id == member.id ? member : m,
   ]);
 
-  /// Menghapus member beserta kehadiran dan iurannya di semua sesi.
+  /// Menghapus member beserta kehadiran, konfirmasi, pemakaian, dan tagihannya.
+  /// Iuran yang sudah dibayar atau sedang dikembalikan tetap disimpan supaya
+  /// catatan uang tidak berubah. Daftar match lama dibiarkan agar pembagian kok
+  /// pemain lain tetap sama.
   void removeMember(String memberId) {
     state = state.copyWith(
       events: [
         for (final e in state.events)
           e.copyWith(
             attendees: {...e.attendees}..remove(memberId),
-            dues: {...e.dues}..remove(memberId),
+            dues: {...e.dues}
+              ..removeWhere(
+                (id, d) => id == memberId && !d.paid && d.refund == null,
+              ),
+            usage: {...e.usage}..remove(memberId),
             rsvps: {...e.rsvps}..remove(memberId),
           ),
       ],
@@ -156,13 +169,27 @@ class ManageNotifier extends Notifier<ManageState> {
     final event = state.eventById(eventId);
     final pb = state.pb;
     if (event == null || pb == null) return;
-    final dues = <String, Due>{};
-    for (final id in attendees) {
-      dues[id] = event.dues[id] ?? Due(amount: pb.feePerSession);
-    }
-    for (final entry in event.dues.entries) {
-      if (entry.value.paid || entry.value.proof != null) {
-        dues.putIfAbsent(entry.key, () => entry.value);
+    final perOrang = state.duesSystem.timing == DuesTiming.perOrang;
+    // Iuran per orang ditagih lewat "Catat pemakaian", jadi tagihan yang ada
+    // tidak disentuh saat kehadiran disimpan.
+    final dues = perOrang ? {...event.dues} : <String, Due>{};
+    if (!perOrang) {
+      final sys = state.duesSystem;
+      final autoBill = sys.timing == DuesTiming.sebelum || sys.autoBill;
+      for (final id in attendees) {
+        final old = event.dues[id];
+        if (old == null || old.refund?.status == RefundStatus.selesai) {
+          if (autoBill) dues[id] = Due(amount: pb.feePerSession);
+        } else {
+          dues[id] = SessionEvent.rejoin(old, pb.feePerSession);
+        }
+      }
+      for (final entry in event.dues.entries) {
+        if (entry.value.paid ||
+            entry.value.proof != null ||
+            entry.value.refund != null) {
+          dues.putIfAbsent(entry.key, () => entry.value);
+        }
       }
     }
     _replaceEvent(
@@ -170,10 +197,126 @@ class ManageNotifier extends Notifier<ManageState> {
     );
   }
 
+  /// Menagih semua yang hadir dan belum punya tagihan, untuk PB yang mematikan
+  /// tagihan otomatis.
+  void billAttendees(String eventId) {
+    final event = state.eventById(eventId);
+    final pb = state.pb;
+    if (event == null || pb == null) return;
+    _replaceEvent(
+      event.copyWith(
+        dues: {
+          ...event.dues,
+          for (final id in event.unbilledAttendees)
+            if (state.memberById(id) != null) id: Due(amount: pb.feePerSession),
+        },
+      ),
+    );
+  }
+
+  /// Mengganti aturan iuran PB (K22).
+  void setDuesSystem(DuesSystem system) =>
+      state = state.copyWith(duesSystem: system);
+
+  /// Menandai lunas atau membatalkannya, lengkap dengan waktunya.
+  void setPaid(String eventId, String memberId, bool paid) {
+    final due = state.eventById(eventId)?.dues[memberId];
+    if (due == null) return;
+    setDue(
+      eventId,
+      memberId,
+      due.copyWith(
+        paid: paid,
+        paidAt: paid ? ref.read(nowProvider)() : null,
+        clearPaidAt: !paid,
+      ),
+    );
+  }
+
+  /// Pemakaian satu pemain (mode per orang).
+  void setUsage(String eventId, String memberId, Usage usage) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(event.copyWith(usage: {...event.usage, memberId: usage}));
+  }
+
+  /// Daftar match (mode per match); pemakaian per pemain dihitung ulang.
+  void setMatches(String eventId, List<MatchRecord> matches) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(
+      event.copyWith(
+        matches: matches,
+        usage: SessionEvent.usageFromMatches(matches),
+      ),
+    );
+  }
+
+  /// Mengirim tagihan per orang dari pemakaian yang sudah dicatat (K23c).
+  /// Yang sudah lunas tidak diubah. Tagihan belum lunas tanpa pemakaian
+  /// dihapus, kecuali sudah ada bukti transfernya.
+  void sendBills(String eventId) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    final sys = state.duesSystem;
+    final dues = {...event.dues};
+    final billed = <String>{};
+    for (final u in event.chargeableUsage) {
+      final amount = sys.billFor(u.value);
+      // Match lama bisa masih memuat member yang sudah dihapus.
+      if (amount == 0 || state.memberById(u.key) == null) continue;
+      var old = dues[u.key];
+      if (old?.refund?.status == RefundStatus.selesai) old = null;
+      if (old != null && (old.paid || old.refund != null)) continue;
+      billed.add(u.key);
+      dues[u.key] = (old ?? Due(amount: amount)).copyWith(
+        amount: amount,
+        clearCancelledAt: true,
+      );
+    }
+    dues.removeWhere(
+      (id, d) =>
+          !billed.contains(id) &&
+          !d.paid &&
+          d.proof == null &&
+          d.refund == null,
+    );
+    _replaceEvent(event.copyWith(dues: dues, billsSent: true));
+  }
+
+  /// Keputusan pengurus atas pengajuan pengembalian.
+  void decideRefund(String eventId, String memberId, {required bool approve}) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(event.decideRefund(memberId, approve: approve));
+  }
+
+  /// Uang sudah ditransfer balik ke member.
+  void markRefunded(String eventId, String memberId) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(event.markRefunded(memberId, ref.read(nowProvider)()));
+  }
+
+  /// Mengembalikan status pengembalian (tombol "Batalkan" di snackbar).
+  void setRefundStatus(String eventId, String memberId, RefundStatus status) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(event.setRefundStatus(memberId, status));
+  }
+
+  /// Member mengajukan pengembalian (dari pratinjau sebagai member).
+  void requestRefund(String eventId, String memberId, String reason) {
+    final event = state.eventById(eventId);
+    if (event == null) return;
+    _replaceEvent(event.requestRefund(memberId, reason));
+  }
+
   void setDue(String eventId, String memberId, Due due) {
     final event = state.eventById(eventId);
     if (event == null) return;
-    _replaceEvent(event.copyWith(dues: {...event.dues, memberId: due}));
+    final settled = event.settleCancelled(due, state.duesSystem);
+    _replaceEvent(event.copyWith(dues: {...event.dues, memberId: settled}));
   }
 
   /// Menghapus catatan iuran satu member di satu sesi (dipakai untuk
@@ -184,17 +327,23 @@ class ManageNotifier extends Notifier<ManageState> {
     _replaceEvent(event.copyWith(dues: {...event.dues}..remove(memberId)));
   }
 
-  /// Konfirmasi member ikut atau tidak. Null menghapus jawabannya.
+  /// Konfirmasi member ikut atau tidak. Ikut membuat tagihan kalau iuran
+  /// dibayar sebelum main; batal mengikuti aturan pembatalan. Null menghapus
+  /// jawabannya.
   void setRsvp(String eventId, String memberId, Rsvp? rsvp) {
     final event = state.eventById(eventId);
-    if (event == null) return;
-    final rsvps = {...event.rsvps};
-    if (rsvp == null) {
-      rsvps.remove(memberId);
-    } else {
-      rsvps[memberId] = rsvp;
-    }
-    _replaceEvent(event.copyWith(rsvps: rsvps));
+    final pb = state.pb;
+    if (event == null || pb == null) return;
+    final next = switch (rsvp) {
+      Rsvp.ikut => event.confirm(memberId, state.duesSystem, pb.feePerSession),
+      Rsvp.tidak => event.cancel(
+        memberId,
+        ref.read(nowProvider)(),
+        state.duesSystem,
+      ),
+      null => event.copyWith(rsvps: {...event.rsvps}..remove(memberId)),
+    };
+    _replaceEvent(next);
   }
 
   /// Member mengirim bukti transfer. Kalau iurannya belum tercatat (bayar
@@ -224,6 +373,7 @@ class ManageNotifier extends Notifier<ManageState> {
       memberId,
       due.copyWith(
         paid: true,
+        paidAt: ref.read(nowProvider)(),
         proof: proof.copyWith(status: ProofStatus.disetujui),
       ),
     );
