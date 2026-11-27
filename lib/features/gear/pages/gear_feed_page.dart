@@ -10,8 +10,8 @@ import '../state/gear_providers.dart';
 import '../../../core/widgets/covers.dart';
 
 YbTag stockTag(bool inStock) => inStock
-    ? const YbTag('Ready', tone: YbTagTone.success)
-    : const YbTag('Habis', tone: YbTagTone.primarySoft);
+    ? const YbTag('Tersedia', tone: YbTagTone.success)
+    : const YbTag('Habis', tone: YbTagTone.warning);
 
 /// Kartu produk untuk grid feed dan halaman toko.
 class ProductCard extends StatelessWidget {
@@ -30,18 +30,21 @@ class ProductCard extends StatelessWidget {
         children: [
           AspectRatio(aspectRatio: 1.3, child: ProductImage(product: product)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   product.name,
-                  style: YbText.body(weight: FontWeight.w700),
+                  style: YbText.body(size: 14, weight: FontWeight.w600),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Text(formatRupiah(product.price), style: YbText.label()),
+                const SizedBox(height: 4),
+                Text(
+                  formatRupiah(product.price),
+                  style: YbText.display(size: 17),
+                ),
                 if (shopName != null)
                   Text(
                     shopName!,
@@ -126,56 +129,91 @@ class _GearFeedPageState extends ConsumerState<GearFeedPage> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          Text('Perlengkapan', style: YbText.display(size: 30)),
-          const SizedBox(height: 14),
+          const YbPageTitle(
+            'Perlengkapan',
+            subtitle: 'Dari toko partner di Surabaya',
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _search,
             onChanged: (_) => setState(() {}),
             style: YbText.body(size: 15),
             decoration: InputDecoration(
               hintText: 'Cari raket, sepatu, senar',
-              prefixIcon: Icon(Icons.search, color: YbColors.ink),
+              prefixIcon: Icon(Icons.search_rounded, color: YbColors.muted),
+              filled: true,
+              fillColor: YbColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(YbRadius.pill),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(YbRadius.pill),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Material(
             key: TourKeys.gearAdvisor,
-            color: YbColors.accentSoft,
-            borderRadius: BorderRadius.circular(YbRadius.md),
+            color: YbColors.night,
+            borderRadius: BorderRadius.circular(YbRadius.lg),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => context.push('/saran'),
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.tips_and_updates_outlined, color: YbColors.ink),
-                    const SizedBox(width: 10),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: YbColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.tips_and_updates_outlined,
+                        color: YbColors.onAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Bingung pilih raket atau sepatu?',
-                            style: YbText.body(weight: FontWeight.w700),
+                            style: YbText.body(
+                              size: 16,
+                              weight: FontWeight.w600,
+                              color: YbColors.onNight,
+                            ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
                             'Jawab 3 pertanyaan, kami pilihkan lengkap dengan alasannya.',
-                            style: YbText.label(color: YbColors.ink),
+                            style: YbText.body(
+                              size: 13,
+                              color: YbColors.onNight.withValues(alpha: 0.75),
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const YbTag('Coba', tone: YbTagTone.primary),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: YbColors.onNight.withValues(alpha: 0.75),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           Wrap(
             spacing: 8,
             runSpacing: 8,

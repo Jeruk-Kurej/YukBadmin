@@ -14,20 +14,34 @@ int? parseRupiah(String input) {
 String formatTimeOfDay(TimeOfDay t) =>
     '${t.hour.toString().padLeft(2, '0')}.${t.minute.toString().padLeft(2, '0')}';
 
-/// Membuka WhatsApp ke [number] (format 62...) dengan pesan terisi.
-/// Mengembalikan false kalau WhatsApp tidak bisa dibuka.
-Future<bool> openWhatsApp(String number, String message) async {
+/// Membuka tautan di app lain. False kalau tautan tidak sah atau tidak ada app
+/// yang bisa membukanya.
+Future<bool> openExternal(Uri? uri) async {
+  if (uri == null) return false;
   try {
-    return await launchUrl(
-      Uri.https('wa.me', '/$number', {'text': message}),
-      mode: LaunchMode.externalApplication,
-    );
+    return await launchUrl(uri, mode: LaunchMode.externalApplication);
   } catch (_) {
-    // Sebagian perangkat melempar galat kalau tidak ada app yang bisa
-    // membuka tautan; perlakukan sama seperti gagal dibuka.
     return false;
   }
 }
+
+/// Alamat web dari isian pengguna. Null kalau bukan alamat http atau https.
+Uri? webUri(String input) {
+  final text = input.trim();
+  final uri = Uri.tryParse(text.contains('://') ? text : 'https://$text');
+  if (uri == null ||
+      !(uri.scheme == 'https' || uri.scheme == 'http') ||
+      !uri.host.contains('.') ||
+      text.contains(' ')) {
+    return null;
+  }
+  return uri;
+}
+
+/// Membuka WhatsApp ke [number] (format 62...) dengan pesan terisi.
+/// Mengembalikan false kalau WhatsApp tidak bisa dibuka.
+Future<bool> openWhatsApp(String number, String message) =>
+    openExternal(Uri.https('wa.me', '/$number', {'text': message}));
 
 /// Bar tombol di bawah layar, putih sampai tepi bawah.
 class BottomActionBar extends StatelessWidget {
@@ -39,15 +53,12 @@ class BottomActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        20,
+        16,
         12,
-        20,
+        16,
         12 + MediaQuery.viewPaddingOf(context).bottom,
       ),
-      decoration: BoxDecoration(
-        color: YbColors.surface,
-        border: Border(top: BorderSide(color: YbColors.line)),
-      ),
+      color: YbColors.bg,
       child: Row(children: children),
     );
   }
@@ -73,8 +84,8 @@ class LabeledField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: YbText.label()),
-          const SizedBox(height: 6),
+          Text(label, style: YbText.body(size: 14, weight: FontWeight.w600)),
+          const SizedBox(height: 8),
           child,
           if (helper != null) ...[
             const SizedBox(height: 4),
@@ -98,12 +109,12 @@ class FieldError extends StatelessWidget {
       padding: const EdgeInsets.only(top: 6, bottom: 4),
       child: Row(
         children: [
-          Icon(Icons.error_outline, size: 16, color: YbColors.primaryDark),
+          Icon(Icons.error_outline, size: 16, color: YbColors.error),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               message,
-              style: YbText.body(size: 12, color: YbColors.primaryDark),
+              style: YbText.body(size: 13, color: YbColors.error),
             ),
           ),
         ],
@@ -112,7 +123,9 @@ class FieldError extends StatelessWidget {
   }
 }
 
-/// Judul halaman dengan tombol kembali dan aksi opsional di kanan.
+/// Bar atas halaman (Final Design v4): tombol kembali bulat di kiri, judul
+/// kecil di tengah, aksi opsional di kanan. Tanpa tombol kembali, judul
+/// tampil besar di kiri.
 class PageHeader extends StatelessWidget {
   const PageHeader({
     super.key,
@@ -127,24 +140,35 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (back) ...[const YbBackButton(), const SizedBox(width: 12)],
-        Expanded(
-          child: Text(
-            title,
-            style: YbText.display(size: back ? 22 : 30),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        // Di layar sempit atau teks besar, tombol kanan ikut menyempit
-        // (teksnya turun baris) supaya tidak meluber.
-        if (trailing != null) ...[
+    if (!back) return YbPageTitle(title, trailing: trailing);
+    return SizedBox(
+      height: 52,
+      child: Row(
+        children: [
+          const YbBackButton(),
           const SizedBox(width: 8),
-          Flexible(child: trailing!),
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: YbText.body(size: 17, weight: FontWeight.w600),
+                textAlign: trailing == null
+                    ? TextAlign.center
+                    : TextAlign.start,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Di layar sempit atau teks besar, tombol kanan ikut menyempit.
+          if (trailing != null)
+            Flexible(child: trailing!)
+          else
+            const SizedBox(width: 44),
         ],
-      ],
+      ),
     );
   }
 }
@@ -159,62 +183,20 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return YbCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value, style: YbText.display(size: 22)),
+            child: Text(value, style: YbText.display(size: 24)),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: YbText.label(),
+            style: YbText.body(size: 13, color: YbColors.muted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Kotak ringkasan berwarna untuk nominal iuran.
-class AmountTile extends StatelessWidget {
-  const AmountTile({
-    super.key,
-    required this.amount,
-    required this.label,
-    required this.positive,
-  });
-
-  final int amount;
-  final String label;
-  final bool positive;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = positive ? YbColors.success : YbColors.warning;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: positive ? YbColors.successSoft : YbColors.warningSoft,
-        borderRadius: BorderRadius.circular(YbRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              formatRupiah(amount),
-              style: YbText.display(size: 20, color: fg),
-            ),
-          ),
-          Text(label, style: YbText.label(color: fg)),
         ],
       ),
     );
@@ -231,69 +213,23 @@ Future<bool> confirmDestructive(
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      backgroundColor: YbColors.surface,
-      surfaceTintColor: Colors.transparent,
-      title: Text(title, style: YbText.display(size: 19)),
-      content: Text(message, style: YbText.body(color: YbColors.muted)),
+      title: Text(title),
+      content: Text(message),
       actions: [
         TextButton(
+          style: TextButton.styleFrom(foregroundColor: YbColors.ink),
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text('Batal', style: YbText.body(weight: FontWeight.w700)),
+          child: const Text('Batal'),
         ),
         TextButton(
+          style: TextButton.styleFrom(foregroundColor: YbColors.error),
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(
-            confirmLabel,
-            style: YbText.body(
-              color: YbColors.primary,
-              weight: FontWeight.w700,
-            ),
-          ),
+          child: Text(confirmLabel),
         ),
       ],
     ),
   );
   return result ?? false;
-}
-
-/// Tombol beralih antara mode pemain dan mode pengurus. Satu akun bisa
-/// keduanya, jadi tombol ini muncul di beranda masing-masing mode.
-class RoleSwitchButton extends StatelessWidget {
-  const RoleSwitchButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-    this.onDark = false,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-  final bool onDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = onDark ? Colors.white : YbColors.ink;
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: fg,
-        backgroundColor: onDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : YbColors.surface,
-        side: BorderSide(
-          color: onDark ? Colors.white.withValues(alpha: 0.5) : YbColors.line,
-          width: 1.5,
-        ),
-        shape: const StadiumBorder(),
-        minimumSize: const Size(0, 44),
-      ),
-      onPressed: onPressed,
-      icon: Icon(Icons.swap_horiz, size: 18, color: fg),
-      label: Text(
-        label,
-        style: YbText.body(color: fg, weight: FontWeight.w700),
-      ),
-    );
-  }
 }
 
 /// Memeriksa isian tahun berdiri. Kosong boleh; kalau diisi harus tahun
@@ -306,4 +242,35 @@ String? foundedYearError(String input, int thisYear) {
     return 'Isi tahun antara 1950 dan $thisYear, atau kosongkan.';
   }
   return null;
+}
+
+/// Memegang satu [TextEditingController] untuk dialog atau sheet. Controller
+/// baru dibuang setelah animasi tutupnya selesai; membuangnya tepat setelah
+/// `showDialog` kembali membuat app galat.
+class TextControllerScope extends StatefulWidget {
+  const TextControllerScope({
+    super.key,
+    required this.initialText,
+    required this.builder,
+  });
+
+  final String initialText;
+  final Widget Function(BuildContext context, TextEditingController controller)
+  builder;
+
+  @override
+  State<TextControllerScope> createState() => _TextControllerScopeState();
+}
+
+class _TextControllerScopeState extends State<TextControllerScope> {
+  late final _controller = TextEditingController(text: widget.initialText);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _controller);
 }
