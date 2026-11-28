@@ -1,14 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 import '../../../core/data/local_store.dart';
+import '../../../core/data/supabase_config.dart';
 import '../data/pb_codec.dart';
 import '../data/pb_models.dart';
 import '../../manage/state/manage_providers.dart';
 import '../data/pb_repository.dart';
+import '../data/supabase_pb_repository.dart';
 
-final pbRepositoryProvider = Provider<PbRepository>(
-  (ref) => const SeedPbRepository(),
-);
+/// PB dari Supabase kalau dikonfigurasi, kalau tidak dari data contoh.
+final pbRepositoryProvider = Provider<PbRepository>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return client == null
+      ? const SeedPbRepository()
+      : SupabasePbRepository(client);
+});
 
 /// Gambar peta diunduh dari OpenStreetMap. Tes mematikannya karena tes
 /// tidak boleh mengakses jaringan.
@@ -70,6 +77,16 @@ class SessionUser {
 class SessionNotifier extends Notifier<SessionUser?> {
   @override
   SessionUser? build() {
+    // Dengan Supabase, sesi mengikuti Supabase Auth (tersimpan aman oleh
+    // pustaka Supabase), bukan cache lokal.
+    final client = ref.watch(supabaseClientProvider);
+    if (client != null) {
+      final sub = client.auth.onAuthStateChange.listen(
+        (data) => state = sessionUserFromSupabase(data.session?.user),
+      );
+      ref.onDispose(sub.cancel);
+      return sessionUserFromSupabase(client.auth.currentUser);
+    }
     final store = ref.watch(localStoreProvider);
     listenSelf(
       (_, next) => writeCached(
@@ -107,7 +124,24 @@ class SessionNotifier extends Notifier<SessionUser?> {
   }) =>
       state = SessionUser(name: name, email: email, emailVerified: !newAccount);
 
-  void signOut() => state = null;
+  void signOut() {
+    state = null;
+    ref.read(supabaseClientProvider)?.auth.signOut();
+  }
+}
+
+/// Pengguna Supabase ke [SessionUser]. Nama dari metadata saat daftar.
+SessionUser? sessionUserFromSupabase(User? user) {
+  if (user == null) return null;
+  final email = user.email ?? '';
+  final meta = user.userMetadata?['name'];
+  return SessionUser(
+    name: meta is String && meta.trim().isNotEmpty
+        ? meta.trim()
+        : email.split('@').first,
+    email: email,
+    emailVerified: user.emailConfirmedAt != null,
+  );
 }
 
 /// Pengaturan privasi: profil (nama, level, area) terlihat sesama member.
