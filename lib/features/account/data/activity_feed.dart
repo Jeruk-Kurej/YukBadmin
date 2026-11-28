@@ -55,9 +55,13 @@ class PlayerNotice {
     required this.time,
     required this.kind,
     this.action,
-  });
+    String? route,
+  }) : route = route ?? '/pb-ku/$pbId';
 
   final String pbId;
+
+  /// Halaman yang dibuka tombol aksinya.
+  final String route;
   final String title;
   final String message;
   final DateTime time;
@@ -69,17 +73,31 @@ class PlayerNotice {
   bool get needsAction => action != null;
 }
 
-enum NoticeKind { session, rejected, unpaid, paid }
+enum NoticeKind { session, rejected, unpaid, paid, followUp }
 
 /// Notifikasi pemain dari data PB-ku: sesi 2 hari ke depan yang belum
 /// dijawab, bukti yang ditolak, iuran belum dibayar, dan iuran yang baru
-/// tercatat lunas (7 hari terakhir).
+/// tercatat lunas (7 hari terakhir). [followUps] berisi PB yang sudah
+/// dihubungi tapi masih menunggu balasan pengurus lebih dari 2 hari.
 List<PlayerNotice> playerNotices(
   List<Membership> memberships,
   DateTime now,
-  Map<String, String> pbNames,
-) {
-  final out = <PlayerNotice>[];
+  Map<String, String> pbNames, {
+  List<(String, DateTime)> followUps = const [],
+}) {
+  final out = <PlayerNotice>[
+    for (final (pbId, since) in followUps)
+      PlayerNotice(
+        pbId: pbId,
+        title: '${pbNames[pbId] ?? 'PB'} belum membalas',
+        message:
+            'Sudah ${now.difference(since).inDays} hari sejak kamu menghubungi pengurus. Hubungi lagi, atau tandai statusnya kalau sudah dibalas.',
+        time: since,
+        kind: NoticeKind.followUp,
+        action: 'Lihat PB tersimpan',
+        route: '/tersimpan',
+      ),
+  ];
   for (final m in memberships) {
     final name = pbNames[m.pbId] ?? 'PB';
     for (final e in m.events) {

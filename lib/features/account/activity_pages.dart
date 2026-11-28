@@ -10,6 +10,7 @@ import '../manage/data/manage_models.dart';
 import '../manage/state/manage_providers.dart' show nowProvider;
 import '../pb/data/pb_models.dart' show Pb;
 import 'data/activity_feed.dart';
+import '../pb/state/join_status.dart';
 import '../pb/state/providers.dart';
 
 /// Kepala halaman biru malam dengan tombol kembali dan judul (Final Design V5).
@@ -445,10 +446,18 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       for (final pb in ref.watch(pbListProvider).value ?? const <Pb>[])
         pb.id: pb.name,
     };
+    final now = ref.watch(nowProvider)();
+    final records = ref.watch(joinStatusProvider);
     final all = playerNotices(
       ref.watch(membershipProvider),
-      ref.watch(nowProvider)(),
+      now,
       names,
+      followUps: [
+        for (final (pb, at) in ref.watch(contactedPbProvider))
+          if (joinRecordFor(records, pb.id, at) case final r
+              when r.needsFollowUp(now))
+            (pb.id, r.updatedAt),
+      ],
     );
     final shown = _actionOnly ? all.where((n) => n.needsAction).toList() : all;
     final action = shown.where((n) => n.needsAction).toList();
@@ -544,6 +553,11 @@ class _NoticeRow extends StatelessWidget {
         YbColors.warningSoft,
         YbColors.warning,
       ),
+      NoticeKind.followUp => (
+        Icons.chat_outlined,
+        YbColors.primarySoft,
+        YbColors.primaryDark,
+      ),
       NoticeKind.paid => (
         Icons.check_rounded,
         YbColors.successSoft,
@@ -585,7 +599,7 @@ class _NoticeRow extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       textStyle: YbText.body(size: 13, weight: FontWeight.w700),
                     ),
-                    onPressed: () => context.push('/pb-ku/${notice.pbId}'),
+                    onPressed: () => context.push(notice.route),
                     child: Text(notice.action!),
                   ),
                 ],
