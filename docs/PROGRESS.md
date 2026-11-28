@@ -94,7 +94,7 @@ Semua layar dari Figma sudah dibangun.
 
 ### Supabase tahap 1 (27 November 2026)
 
-Project `nbmssaxkvrobuuvttjlf` sudah berisi skema, hak akses, dan data contoh. App memakai Supabase kalau dijalankan dengan `--dart-define-from-file=env/dev.json`; tanpa itu tetap memakai data lokal. Yang sudah lewat Supabase: daftar, masuk, keluar (Supabase Auth), preferensi di tabel `profiles`, daftar PB beserta jadwalnya, serta toko dan produk. Data pengurus dan member masih lokal (tahap 2). RLS per peran ditulis 28 November 2026 di `supabase/migrations/20261128090000_rls_per_peran.sql` dan lolos 42 uji lokal, tapi **belum dijalankan di project**. Cara setup dan tabel hak per peran ada di [docs/SUPABASE.md](SUPABASE.md).
+Project `nbmssaxkvrobuuvttjlf` sudah berisi skema, hak akses, dan data contoh. App memakai Supabase kalau dijalankan dengan `--dart-define-from-file=env/dev.json`; tanpa itu tetap memakai data lokal. Yang sudah lewat Supabase: daftar, masuk, keluar (Supabase Auth), preferensi di tabel `profiles`, daftar PB beserta jadwalnya, serta toko dan produk. Data pengurus dan member masih lokal (tahap 2). RLS per peran ditulis 28 November 2026 di `supabase/migrations/20261128090000_rls_per_peran.sql` lolos 42 uji lokal, dan sudah dijalankan di project pada 28 November 2026 (15 tabel ber-RLS, 40 policy tabel, 5 policy storage; pengunjung tetap bisa membaca PB, toko, dan produk). Cara setup dan tabel hak per peran ada di [docs/SUPABASE.md](SUPABASE.md).
 
 ### Revisi DEPD: Beranda, tiket, dan toko partner (27 November 2026)
 
