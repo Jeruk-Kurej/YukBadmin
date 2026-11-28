@@ -79,7 +79,7 @@ void main() {
 
   testWidgets('isian tidak hilang saat tema berganti', (tester) async {
     final c = await openAccount(tester);
-    await tester.tap(find.text('Cari PB'));
+    await tester.tap(cariPbTab);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'rungkut');
     await tester.pumpAndSettle();
@@ -113,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Beranda'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cari PB'));
+    await tester.tap(cariPbTab);
     await tester.pumpAndSettle();
     expect(YbColors.isDark, isTrue);
   });

@@ -80,7 +80,7 @@ void main() {
       await signInWithEmail(tester);
       await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Cari PB'));
+      await tester.tap(cariPbTab);
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Tampilkan peta'));
       await tester.pumpAndSettle();

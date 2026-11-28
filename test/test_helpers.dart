@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yukbadmin/core/widgets/yb_widgets.dart';
 import 'package:yukbadmin/features/auth/data/local_accounts.dart';
 
 /// Masuk lewat layar "Masuk dengan email", bawaannya ke akun contoh.
@@ -21,3 +22,10 @@ Future<void> signInWithEmail(
   await tester.tap(submit);
   await tester.pumpAndSettle();
 }
+
+/// Tab "Cari PB" di tab bar. Beranda juga punya tombol "Cari PB" di hero,
+/// jadi teks saja tidak cukup untuk memilih tab.
+Finder get cariPbTab => find.descendant(
+  of: find.byType(YbTabBar),
+  matching: find.text('Cari PB'),
+);

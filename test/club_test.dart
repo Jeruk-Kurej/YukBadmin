@@ -281,13 +281,20 @@ void main() {
           .length;
       expect(upcoming, greaterThan(1));
       expect(find.byType(SessionTicket), findsNWidgets(upcoming));
-      // Tiket Beranda: satu tombol kecil "Ikut", lalu status tagihannya.
+      // Tiket Beranda tanpa tombol: seluruh tiket membuka PB-ku untuk
+      // menjawab ikut, lalu tiket menampilkan status tagihannya.
       expect(find.text('8 ikut'), findsOneWidget);
-      await tap(tester, find.widgetWithText(FilledButton, 'Ikut').first);
+      expect(find.widgetWithText(FilledButton, 'Ikut'), findsNothing);
+      await tap(tester, find.byType(SessionTicket).first);
+      expect(find.byType(SessionTicket), findsNothing);
+      await tap(tester, find.text('Ikut').first);
+
+      final pbId = c.read(membershipProvider).single.pbId;
+      c.read(routerProvider).go('/beranda');
+      await tester.pumpAndSettle();
       expect(find.text('9 ikut'), findsOneWidget);
       expect(find.text('Bayar Rp150rb'), findsOneWidget);
 
-      final pbId = c.read(membershipProvider).single.pbId;
       c.read(routerProvider).push('/pb-ku/$pbId');
       await tester.pumpAndSettle();
       // Ikut sesi berikutnya langsung menambah tagihan (bayar sebelum main).

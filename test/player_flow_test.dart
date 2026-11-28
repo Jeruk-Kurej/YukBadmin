@@ -97,7 +97,7 @@ void main() {
     await tester.tap(find.text('Lewati'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Cari PB'));
+    await tester.tap(cariPbTab);
     await tester.pumpAndSettle();
     expect(find.textContaining('PB terdaftar'), findsOneWidget);
 
@@ -165,7 +165,7 @@ void main() {
     await signIn(tester);
     await tester.tap(find.text('Lewati'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cari PB'));
+    await tester.tap(cariPbTab);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('PB Smash Surabaya'),
