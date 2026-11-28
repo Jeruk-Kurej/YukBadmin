@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_page.dart';
+import '../features/account/activity_pages.dart';
 import '../features/account/help_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/preferences_page.dart';
@@ -79,6 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/tersimpan', builder: (_, _) => const SavedPage()),
       GoRoute(path: '/bantuan', builder: (_, _) => const HelpPage()),
+      GoRoute(path: '/riwayat', builder: (_, _) => const TransactionsPage()),
+      GoRoute(
+        path: '/notifikasi',
+        builder: (_, _) => const NotificationsPage(),
+      ),
       GoRoute(
         path: '/pb-ku',
         builder: (_, _) => const ClubListPage(),
