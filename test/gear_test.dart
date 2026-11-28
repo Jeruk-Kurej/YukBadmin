@@ -153,6 +153,9 @@ void main() {
       expect(find.text('Raket Falcon 80'), findsNothing);
       expect(find.text('Senar Lincah 66'), findsOneWidget);
 
+      // Kepala halaman V5 lebih tinggi, jadi produk digulir dulu ke layar.
+      await tester.ensureVisible(find.text('Senar Lincah 66'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Senar Lincah 66'));
       await tester.pumpAndSettle();
       expect(find.text('Senar Lincah 66'), findsOneWidget);
