@@ -6,6 +6,8 @@ import 'package:yukbadmin/features/gear/data/gear_models.dart';
 import 'package:yukbadmin/features/gear/data/gear_repository.dart';
 import 'package:yukbadmin/main.dart';
 
+import 'test_helpers.dart';
+
 void main() {
   late List<Product> products;
   const advisor = GearAdvisor();
@@ -118,8 +120,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(const ProviderScope(child: YukBadminApp()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Masuk dengan Google'));
-      await tester.pumpAndSettle();
+      await signInWithEmail(tester);
       await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
     }
@@ -154,8 +155,8 @@ void main() {
 
       await tester.tap(find.text('Senar Lincah 66'));
       await tester.pumpAndSettle();
-      expect(find.text('Detail produk'), findsOneWidget);
-      expect(find.text('Habis'), findsOneWidget);
+      expect(find.text('Senar Lincah 66'), findsOneWidget);
+      expect(find.text('Habis menurut toko'), findsOneWidget);
       expect(find.text('Tanya kapan ada lagi'), findsOneWidget);
 
       await tapVisible(tester, find.text('Toko Gesit Sport'));
@@ -176,6 +177,8 @@ void main() {
         300,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text('Kenapa saran ini?'));
+      await tester.pumpAndSettle();
       // Penjelasan dibuka di sheet, tidak memenuhi halaman.
       await tester.tap(find.text('Kenapa saran ini?'));
       await tester.pumpAndSettle();
@@ -223,7 +226,16 @@ void main() {
       await signIn(tester);
       await tester.tap(find.text('Akun'));
       await tester.pumpAndSettle();
-      await tapVisible(tester, find.text('Daftarkan toko'));
+      // Toko partner hanya lewat kode undangan dari tim.
+      expect(find.text('Toko partner'), findsNothing);
+      await tapVisible(tester, find.text('Punya toko perlengkapan?'));
+      await tester.enterText(find.byType(TextField).last, 'asal-asalan');
+      await tester.tap(find.text('Lanjut daftarkan toko'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Kode tidak dikenal'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).last, 'mitra-yb-2026');
+      await tester.tap(find.text('Lanjut daftarkan toko'));
+      await tester.pumpAndSettle();
 
       Finder field(String hint) => find.widgetWithText(TextFormField, hint);
       Future<void> type(String hint, String text) async {
@@ -266,11 +278,14 @@ void main() {
       expect(find.text('Raket Uji Ringan'), findsOneWidget);
 
       // Ganti stok langsung dari daftar.
-      await tester.tap(find.text('Ready'));
+      await tester.tap(find.text('Tersedia'));
       await tester.pumpAndSettle();
       expect(find.text('Habis'), findsOneWidget);
 
-      await tapVisible(tester, find.text('Beralih ke mode pemain'));
+      // Kembali ke mode pemain dari Akun.
+      await tester.tap(find.text('Akun'));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Beralih').first);
       await tester.tap(find.text('Perlengkapan'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, 'uji');
@@ -286,8 +301,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(const ProviderScope(child: YukBadminApp()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Masuk dengan Google'));
-      await tester.pumpAndSettle();
+      await signInWithEmail(tester);
       await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Perlengkapan'));
@@ -308,7 +322,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Toko Gesit Sport').last);
       await tester.pumpAndSettle();
-      expect(find.text('Hubungi toko lewat WhatsApp'), findsOneWidget);
+      expect(find.text('Tanya stok via WhatsApp'), findsOneWidget);
       await tester.tap(find.byTooltip('Kembali'));
       await tester.pumpAndSettle();
       // Detail produk tadi tergulir ke bawah; tombol kembali ada di atas.

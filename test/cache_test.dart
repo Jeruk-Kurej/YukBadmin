@@ -132,20 +132,49 @@ void main() {
     },
   );
 
-  test('keluar akun mengosongkan data PB dan toko di cache', () async {
+  test('data tiap akun terpisah dan tidak hilang saat keluar', () {
     final store = MemoryLocalStore();
-    final first = reopen(store);
-    first.read(sessionProvider.notifier).signInDemo();
-    first.read(manageProvider.notifier).registerPb(_pb);
-    await Future<void>.delayed(Duration.zero);
+    final c = reopen(store);
+    final session = c.read(sessionProvider.notifier)..signInDemo();
+    c.read(manageProvider.notifier).registerPb(_pb);
+    c.read(savedProvider.notifier).toggle('pb-kok-kuning');
+    c
+        .read(preferencesProvider.notifier)
+        .save(const PlayerPreferences(level: Level.d));
+    c.read(profilePublicProvider.notifier).set(true);
 
-    first.read(manageProvider.notifier).clear();
-    first.read(sessionProvider.notifier).signOut();
-    await Future<void>.delayed(Duration.zero);
+    session.signOut();
+    expect(c.read(manageProvider).hasPb, isFalse);
+    expect(c.read(savedProvider), isEmpty);
 
-    final second = reopen(store);
-    expect(second.read(sessionProvider), isNull);
-    expect(second.read(manageProvider).hasPb, isFalse);
+    session.signInEmail(name: 'Sinta', email: 'sinta@contoh.id');
+    expect(c.read(manageProvider).hasPb, isFalse);
+    expect(c.read(savedProvider), isEmpty);
+    expect(c.read(preferencesProvider).level, isNull);
+    expect(c.read(profilePublicProvider), isFalse);
+
+    // Masuk lagi, bahkan setelah app dibuka ulang.
+    session.signOut();
+    final reopened = reopen(store);
+    reopened.read(sessionProvider.notifier).signInDemo();
+    expect(reopened.read(manageProvider).pb?.name, 'PB Uji');
+    expect(reopened.read(savedProvider), {'pb-kok-kuning'});
+    expect(reopened.read(preferencesProvider).level, Level.d);
+    expect(reopened.read(profilePublicProvider), isTrue);
+  });
+
+  test('data dari versi lama dipindahkan ke akun yang sedang masuk', () {
+    final store = MemoryLocalStore({
+      CacheKeys.session: '{"name":"Bryan","email":"bryan@contoh.id"}',
+      CacheKeys.saved: '["pb-kok-kuning"]',
+    });
+    final c = reopen(store);
+    expect(c.read(savedProvider), {'pb-kok-kuning'});
+    expect(store.read(CacheKeys.saved), isNull);
+  });
+
+  test('profil tidak tampil ke sesama member sebelum dinyalakan', () {
+    expect(reopen(MemoryLocalStore()).read(profilePublicProvider), isFalse);
   });
 
   test('cache rusak diabaikan dan app tetap bisa dibuka', () {

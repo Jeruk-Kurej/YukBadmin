@@ -9,6 +9,8 @@ import 'package:yukbadmin/features/pb/data/pb_models.dart';
 import 'package:yukbadmin/features/pb/state/providers.dart';
 import 'package:yukbadmin/main.dart';
 
+import 'test_helpers.dart';
+
 const _pb = Pb(
   id: 'pb-milikku',
   name: 'PB Uji',
@@ -220,8 +222,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(const ProviderScope(child: YukBadminApp()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Masuk dengan Google'));
-      await tester.pumpAndSettle();
+      await signInWithEmail(tester);
       await tester.tap(find.text('Lewati'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Akun'));
@@ -237,7 +238,7 @@ void main() {
 
     testWidgets('form pendaftaran menolak isian kosong', (tester) async {
       await openAccount(tester);
-      await tapVisible(tester, find.text('Daftarkan PB'));
+      await tapVisible(tester, find.text('Daftarkan').first);
       await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
       expect(find.text('Isi nama PB, minimal 3 huruf.'), findsOneWidget);
@@ -256,7 +257,7 @@ void main() {
       tester,
     ) async {
       await openAccount(tester);
-      await tapVisible(tester, find.text('Daftarkan PB'));
+      await tapVisible(tester, find.text('Daftarkan').first);
 
       Finder field(String hint) => find.widgetWithText(TextFormField, hint);
       await tester.enterText(field('PB Smash Surabaya'), 'PB Uji Coba');
@@ -281,7 +282,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('B'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(field('150000'));
+      await tester.scrollUntilVisible(
+        field('150000'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       await tester.enterText(field('150000'), '150000');
       await tester.pumpAndSettle();
@@ -289,7 +294,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Periksa data PB'), findsOneWidget);
-      expect(find.text('Level D–B'), findsOneWidget);
+      expect(find.textContaining('Level D–B'), findsOneWidget);
       await tapVisible(tester, find.text('Daftarkan PB'));
 
       // Dashboard.
@@ -313,11 +318,11 @@ void main() {
       await tester.tap(find.text('Jadwal'));
       await tester.pumpAndSettle();
       await tapVisible(tester, find.text('Catat kehadiran'));
-      expect(find.text('0 hadir'), findsOneWidget);
+      expect(find.text('Simpan 0 hadir'), findsOneWidget);
       await tester.tap(find.text('Andi Pratama'));
       await tester.pumpAndSettle();
-      expect(find.text('1 hadir'), findsOneWidget);
-      await tester.tap(find.text('Simpan kehadiran'));
+      expect(find.text('Simpan 1 hadir'), findsOneWidget);
+      await tester.tap(find.text('Simpan 1 hadir'));
       await tester.pumpAndSettle();
 
       // Iuran sesi.

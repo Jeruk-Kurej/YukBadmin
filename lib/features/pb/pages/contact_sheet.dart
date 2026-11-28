@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/widgets/yb_widgets.dart';
+import '../../manage/state/manage_providers.dart' show nowProvider;
+import '../../manage/pages/manage_widgets.dart' show openExternal;
 import '../data/pb_models.dart';
 import '../state/providers.dart';
 
@@ -55,9 +56,12 @@ class _ContactSheetState extends ConsumerState<_ContactSheet> {
     final uri = Uri.https('wa.me', '/${widget.pb.manager.whatsapp}', {
       'text': text,
     });
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final ok = await openExternal(uri);
     if (!mounted) return;
     if (ok) {
+      ref
+          .read(contactedProvider.notifier)
+          .mark(widget.pb.id, ref.read(nowProvider)());
       Navigator.of(context).pop();
     } else {
       setState(

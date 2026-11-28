@@ -69,6 +69,9 @@ void main() {
   }
 
   Future<void> tapText(WidgetTester tester, String text) async {
+    // Tab bar mengambang bisa menutupi tombol di layar kecil.
+    await tester.ensureVisible(find.text(text).last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text(text).last);
     await tester.pumpAndSettle();
   }
@@ -114,7 +117,7 @@ void main() {
 
       // Tombol tambahan di langkah terakhir membuka pendaftaran PB.
       await tapBubble(tester, 'Daftarkan PB');
-      expect(find.text('Langkah 1 dari 3'), findsOneWidget);
+      expect(find.textContaining('Langkah 1 dari 3'), findsOneWidget);
       expect(find.text('Punya PB?'), findsNothing);
       expect(c.read(playerTourSeenProvider), isTrue);
     });

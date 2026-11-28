@@ -14,6 +14,7 @@ import 'package:yukbadmin/features/manage/data/manage_models.dart';
 import 'package:yukbadmin/features/manage/state/manage_providers.dart';
 import 'package:yukbadmin/features/pb/data/pb_models.dart';
 import 'package:yukbadmin/features/pb/state/providers.dart';
+import 'package:yukbadmin/features/club/pages/session_ticket.dart';
 import 'package:yukbadmin/main.dart';
 
 /// Senin, 16 November 2026 pukul 10.00. Sesi PB Smash Surabaya berikutnya
@@ -65,7 +66,10 @@ const _pb = Pb(
 void main() {
   group('keanggotaan contoh', () {
     test('akun demo jadi member PB Smash dengan satu iuran belum dibayar', () {
-      final list = const SeedMembershipRepository().forUser('a@b.id', _now);
+      final list = const SeedMembershipRepository().forUser(
+        SeedMembershipRepository.demoEmail,
+        _now,
+      );
       final m = list.single;
       expect(m.pbId, 'pb-smash-surabaya');
       expect(m.upcoming(_now).map((e) => e.start), [
@@ -269,20 +273,31 @@ void main() {
       tester,
     ) async {
       final c = await start(tester);
-      // Kartu Beranda hanya menampilkan satu ajakan.
-      expect(find.text('Jawab 3 sesi mendatang'), findsOneWidget);
-      expect(find.text('Bayar 1 iuran'), findsNothing);
+      // Jadwalmu menampilkan semua sesi mendatang, bukan hanya yang pertama.
+      final upcoming = c
+          .read(membershipProvider)
+          .single
+          .upcoming(c.read(nowProvider)())
+          .length;
+      expect(upcoming, greaterThan(1));
+      expect(find.byType(SessionTicket), findsNWidgets(upcoming));
+      // Tiket Beranda: satu tombol kecil "Ikut", lalu status tagihannya.
+      expect(find.text('8 ikut'), findsOneWidget);
+      await tap(tester, find.widgetWithText(FilledButton, 'Ikut').first);
+      expect(find.text('9 ikut'), findsOneWidget);
+      expect(find.text('Bayar Rp150rb'), findsOneWidget);
 
-      await tap(tester, find.text('Jawab 3 sesi mendatang'));
-      expect(find.text('8 orang ikut'), findsOneWidget);
-      await tap(tester, find.text('Ikut').first);
-      expect(find.text('9 orang ikut'), findsOneWidget);
-
-      await tap(tester, find.text('Kirim bukti transfer'));
+      final pbId = c.read(membershipProvider).single.pbId;
+      c.read(routerProvider).push('/pb-ku/$pbId');
+      await tester.pumpAndSettle();
+      // Ikut sesi berikutnya langsung menambah tagihan (bayar sebelum main).
+      expect(find.text('Kirim bukti transfer'), findsNWidgets(2));
+      await tap(tester, find.text('Kirim bukti transfer').first);
       await tap(tester, find.text('Pilih dari galeri'));
       expect(find.text('Menunggu dicek'), findsOneWidget);
-      final due = c.read(membershipProvider).single.unpaidDues().single.$2;
-      expect(due.proof?.path, '/bukti-1.jpg');
+      final dues = c.read(membershipProvider).single.unpaidDues();
+      expect(dues.first.$2.proof?.path, '/bukti-1.jpg');
+      expect(dues.last.$2.proof, isNull);
       // Member tidak punya tombol untuk mengubah iuran.
       expect(find.text('Tandai lunas'), findsNothing);
     });
@@ -338,11 +353,11 @@ void main() {
         // Jadwal menampilkan jumlah konfirmasi, kehadiran sudah dicentang.
         c.read(routerProvider).go('/kelola/jadwal');
         await tester.pumpAndSettle();
-        expect(find.text('Konfirmasi member: 1 ikut'), findsOneWidget);
+        expect(find.text('Konfirmasi: 1 ikut'), findsOneWidget);
         c.read(routerProvider).push('/sesi/${event.id}/kehadiran');
         await tester.pumpAndSettle();
-        expect(find.text('1 hadir'), findsOneWidget);
-        await tap(tester, find.text('Simpan kehadiran'));
+        expect(find.text('Simpan 1 hadir'), findsOneWidget);
+        await tap(tester, find.text('Simpan 1 hadir'));
 
         // Member mengirim bukti; pengurus mengeceknya dari halaman iuran.
         c

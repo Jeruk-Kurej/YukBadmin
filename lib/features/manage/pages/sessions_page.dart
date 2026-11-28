@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../app/tours.dart';
 import '../../../core/widgets/yb_widgets.dart';
+import '../../pb/data/pb_models.dart' show dayNames;
 import '../data/manage_models.dart';
 import '../state/manage_providers.dart';
 import 'manage_shell.dart' show formatSessionDate, rsvpSummary;
 import 'manage_widgets.dart';
-import 'members_page.dart' show memberTag;
 
 /// K7 Jadwal sesi.
 class SchedulePage extends ConsumerStatefulWidget {
@@ -31,34 +31,30 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          PageHeader(
-            title: 'Jadwal',
-            back: false,
-            trailing: FilledButton.icon(
+          YbPageTitle(
+            'Jadwal',
+            subtitle: '${state.upcoming(now).length} sesi mendatang',
+            trailing: IconButton(
               key: TourKeys.scheduleCreate,
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              tooltip: 'Buat sesi',
               onPressed: () => showCreateSessionSheet(context),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Buat sesi'),
+              style: IconButton.styleFrom(
+                backgroundColor: YbColors.primary,
+                fixedSize: const Size(44, 44),
+              ),
+              icon: Icon(Icons.add_rounded, color: YbColors.onPrimary),
             ),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            children: [
-              YbChoiceChip(
-                label: 'Mendatang',
-                selected: !_showPast,
-                onTap: () => setState(() => _showPast = false),
-              ),
-              YbChoiceChip(
-                label: 'Riwayat',
-                selected: _showPast,
-                onTap: () => setState(() => _showPast = true),
-              ),
+          const SizedBox(height: 16),
+          YbSegmented<bool>(
+            options: const [
+              (false, 'Mendatang', null),
+              (true, 'Riwayat', null),
             ],
+            selected: _showPast,
+            onChanged: (v) => setState(() => _showPast = v),
           ),
           const SizedBox(height: 12),
           if (list.isEmpty)
@@ -104,26 +100,46 @@ class _SessionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = formatSessionDate(event.start, now) == 'Hari ini';
+    final label = formatSessionDate(event.start, now);
+    final today = label == 'Hari ini';
+    final perOrang = ref.watch(
+      manageProvider.select((s) => s.duesSystem.timing == DuesTiming.perOrang),
+    );
+    final status = event.attendanceSaved
+        ? '${event.attendees.length} dari $memberCount member hadir'
+        : event.rsvps.isNotEmpty
+        ? 'Konfirmasi: ${rsvpSummary(event)}'
+        : 'Kehadiran belum dicatat';
+
     return YbCard(
       highlight: today,
+      padding: const EdgeInsets.fromLTRB(14, 14, 6, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Di layar sempit judul turun ke bawah tag, tidak meluber.
+              _DateTile(date: event.start),
+              const SizedBox(width: 12),
               Expanded(
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    YbTag(
-                      formatSessionDate(event.start, now),
-                      tone: YbTagTone.primary,
+                    Text(
+                      today ? 'Hari ini · ${event.title}' : event.title,
+                      style: YbText.body(size: 16, weight: FontWeight.w600),
                     ),
-                    Text(event.title, style: YbText.display(size: 16)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${event.timeRange} · ${event.venue}',
+                      style: YbText.body(size: 14, color: YbColors.muted),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      status,
+                      style: YbText.body(size: 13, weight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
@@ -133,8 +149,8 @@ class _SessionCard extends ConsumerWidget {
                   final ok = await confirmDestructive(
                     context,
                     title: 'Hapus sesi ini?',
-                    message: event.attendanceSaved
-                        ? 'Catatan kehadiran dan iuran sesi ini ikut terhapus dan tidak bisa dikembalikan.'
+                    message: event.attendanceSaved || event.dues.isNotEmpty
+                        ? 'Catatan kehadiran dan iuran sesi ini, termasuk yang sudah dibayar, ikut terhapus dan tidak bisa dikembalikan.'
                         : 'Sesi ${event.title} akan dihapus dari jadwal.',
                     confirmLabel: 'Hapus sesi',
                   );
@@ -143,51 +159,88 @@ class _SessionCard extends ConsumerWidget {
                   }
                 },
                 icon: Icon(
-                  Icons.delete_outline,
+                  Icons.delete_outline_rounded,
                   size: 20,
                   color: YbColors.muted,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${event.timeRange} · ${event.venue}',
-            style: YbText.body(weight: FontWeight.w600),
-          ),
-          Text(
-            event.attendanceSaved
-                ? '${event.attendees.length} dari $memberCount member hadir'
-                : 'Kehadiran belum dicatat',
-            style: YbText.label(),
-          ),
-          if (!event.attendanceSaved && event.rsvps.isNotEmpty)
-            Text(
-              'Konfirmasi member: ${rsvpSummary(event)}',
-              style: YbText.label(color: YbColors.ink),
-            ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  key: tourTarget ? TourKeys.firstSessionAttendance : null,
-                  onPressed: () => context.push('/sesi/${event.id}/kehadiran'),
-                  child: Text(
-                    event.attendanceSaved
-                        ? 'Ubah kehadiran'
-                        : 'Catat kehadiran',
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    key: tourTarget ? TourKeys.firstSessionAttendance : null,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      // Bantalan bawaan terlalu lebar untuk setengah kartu.
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () =>
+                        context.push('/sesi/${event.id}/kehadiran'),
+                    child: Text(
+                      event.attendanceSaved
+                          ? 'Ubah kehadiran'
+                          : 'Catat kehadiran',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => context.push('/sesi/${event.id}/iuran'),
-                  child: const Text('Iuran'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => context.push(
+                      perOrang && event.attendanceSaved && !event.billsSent
+                          ? '/sesi/${event.id}/pemakaian'
+                          : '/sesi/${event.id}/iuran',
+                    ),
+                    child: Text(
+                      perOrang && event.attendanceSaved && !event.billsSent
+                          ? 'Pemakaian'
+                          : 'Iuran',
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Kotak tanggal hijau limau seperti di kartu sesi Beranda.
+class _DateTile extends StatelessWidget {
+  const _DateTile({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: YbColors.accent,
+        borderRadius: BorderRadius.circular(YbRadius.md),
+      ),
+      child: Column(
+        children: [
+          Text(
+            dayNames[date.weekday]!.substring(0, 3).toUpperCase(),
+            style: YbText.body(
+              size: 11,
+              weight: FontWeight.w700,
+              color: YbColors.onAccent,
+            ),
+          ),
+          Text(
+            '${date.day}',
+            style: YbText.score(size: 22, color: YbColors.onAccent),
           ),
         ],
       ),
@@ -483,15 +536,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                 children: [
-                  PageHeader(
-                    title: 'Kehadiran',
-                    trailing: YbTag(
-                      event.shortLabel,
-                      tone: YbTagTone.accent,
-                      icon: Icons.schedule,
-                    ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: YbBackButton(),
+                  ),
+                  const SizedBox(height: 16),
+                  YbPageTitle(
+                    'Kehadiran',
+                    subtitle: '${event.title} · ${event.shortLabel}',
                   ),
                   const SizedBox(height: 16),
                   if (state.members.isEmpty)
@@ -503,24 +557,80 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                       onAction: () => context.push('/member/baru'),
                     )
                   else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: YbColors.surface,
+                        borderRadius: BorderRadius.circular(YbRadius.lg),
+                      ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _Count('${_present.length}', 'Dicek hadir'),
+                            VerticalDivider(width: 1, color: YbColors.line),
+                            _Count('${event.goingCount}', 'Bilang ikut'),
+                            VerticalDivider(width: 1, color: YbColors.line),
+                            _Count('${state.members.length}', 'Member'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: YbColors.muted,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _prefilled
+                                ? 'Yang bilang ikut sudah dicentang. Hapus centang kalau ternyata tidak datang.'
+                                : 'Ketuk nama saat pemain datang.',
+                            style: YbText.body(size: 13, color: YbColors.muted),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _search,
+                      onChanged: (_) => setState(() {}),
+                      style: YbText.body(size: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama member',
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: YbColors.muted,
+                        ),
+                        filled: true,
+                        fillColor: YbColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(YbRadius.pill),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(YbRadius.pill),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${_present.length} hadir',
-                                style: YbText.display(size: 19),
-                              ),
-                              Text(
-                                'dari ${state.members.length} member',
-                                style: YbText.label(),
-                              ),
-                            ],
+                          child: Text(
+                            'Member',
+                            style: YbText.body(size: 14, color: YbColors.muted),
                           ),
                         ),
-                        OutlinedButton(
+                        TextButton(
                           onPressed: () => setState(() {
                             if (allSelected) {
                               _present.clear();
@@ -534,45 +644,37 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                         ),
                       ],
                     ),
-                    if (_prefilled) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        'Member yang konfirmasi ikut sudah dicentang. Hapus centang kalau ternyata tidak datang.',
-                        style: YbText.label(),
+                    if (members.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'Tidak ada member dengan nama itu.',
+                          textAlign: TextAlign.center,
+                          style: YbText.body(color: YbColors.muted),
+                        ),
+                      )
+                    else
+                      YbGroup(
+                        children: [
+                          for (final m in members)
+                            _AttendanceRow(
+                              member: m,
+                              rsvp: event.rsvps[m.id],
+                              present: _present.contains(m.id),
+                              onChanged: (v) => setState(() {
+                                if (v) {
+                                  _present.add(m.id);
+                                } else {
+                                  _present.remove(m.id);
+                                }
+                              }),
+                            ),
+                        ],
                       ),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _search,
-                      onChanged: (_) => setState(() {}),
-                      style: YbText.body(size: 15),
-                      decoration: InputDecoration(
-                        hintText: 'Cari nama member',
-                        prefixIcon: Icon(Icons.search, color: YbColors.ink),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    for (final m in members) ...[
-                      _AttendanceRow(
-                        member: m,
-                        rsvp: event.rsvps[m.id],
-                        present: _present.contains(m.id),
-                        onChanged: (v) => setState(() {
-                          if (v) {
-                            _present.add(m.id);
-                          } else {
-                            _present.remove(m.id);
-                          }
-                        }),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                    const SizedBox(height: 14),
                     OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
                       onPressed: () => context.push('/member/baru'),
-                      icon: const Icon(Icons.add, size: 20),
+                      icon: const Icon(Icons.add_rounded, size: 20),
                       label: const Text('Tambah pemain baru'),
                     ),
                   ],
@@ -584,24 +686,31 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                 children: [
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
-                        // Member yang dihapus saat layar ini terbuka dibuang.
-                        final valid = state.members.map((m) => m.id).toSet();
-                        ref
-                            .read(manageProvider.notifier)
-                            .saveAttendance(
-                              event.id,
-                              _present.intersection(valid),
-                            );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Kehadiran disimpan'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                        context.pushReplacement('/sesi/${event.id}/iuran');
-                      },
-                      child: const Text('Simpan kehadiran'),
+                      // Kehadiran yang sudah tersimpan boleh dikosongkan.
+                      onPressed: _present.isEmpty && !event.attendanceSaved
+                          ? null
+                          : () {
+                              // Member yang dihapus saat layar ini terbuka dibuang.
+                              final valid = state.members
+                                  .map((m) => m.id)
+                                  .toSet();
+                              ref
+                                  .read(manageProvider.notifier)
+                                  .saveAttendance(
+                                    event.id,
+                                    _present.intersection(valid),
+                                  );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Kehadiran disimpan'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              context.pushReplacement(
+                                '/sesi/${event.id}/iuran',
+                              );
+                            },
+                      child: Text('Simpan ${_present.length} hadir'),
                     ),
                   ),
                 ],
@@ -628,58 +737,69 @@ class _AttendanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final details = [
+      member.typeShort,
+      if (member.level != null) 'Level ${member.level!.label}',
+      if (rsvp == Rsvp.ikut) 'bilang ikut',
+      if (rsvp == Rsvp.tidak) 'bilang tidak ikut',
+    ].join(' · ');
     return Semantics(
       checked: present,
-      label: '${member.name}, ${member.typeShort}',
+      label: '${member.name}, $details',
       excludeSemantics: true,
-      child: Material(
-        color: present ? YbColors.primarySoft : YbColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(YbRadius.md),
-          side: BorderSide(color: present ? YbColors.primary : YbColors.line),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => onChanged(!present),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 6, 12, 6),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: present,
-                  activeColor: YbColors.primary,
-                  onChanged: (v) => onChanged(v ?? false),
+      child: InkWell(
+        onTap: () => onChanged(!present),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 6, 16, 6),
+          child: Row(
+            children: [
+              Checkbox(value: present, onChanged: (v) => onChanged(v ?? false)),
+              YbAvatar(member.initials, photoPath: member.photoPath, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.name,
+                      style: YbText.body(size: 16, weight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      details,
+                      style: YbText.body(size: 13, color: YbColors.muted),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        member.name,
-                        style: YbText.body(size: 15, weight: FontWeight.w700),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (member.level != null || rsvp != null)
-                        Text(
-                          [
-                            if (member.level != null)
-                              'Level ${member.level!.label}',
-                            if (rsvp == Rsvp.ikut) 'Konfirmasi ikut',
-                            if (rsvp == Rsvp.tidak) 'Bilang tidak ikut',
-                          ].join(' · '),
-                          style: YbText.label(),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                memberTag(member),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Satu angka di kartu ringkasan kehadiran.
+class _Count extends StatelessWidget {
+  const _Count(this.value, this.label);
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      children: [
+        Text(value, style: YbText.display(size: 22)),
+        Text(
+          label,
+          style: YbText.body(size: 13, color: YbColors.muted),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
 }

@@ -6,6 +6,8 @@ import 'package:yukbadmin/app/theme_mode.dart';
 import 'package:yukbadmin/core/data/local_store.dart';
 import 'package:yukbadmin/main.dart';
 
+import 'test_helpers.dart';
+
 void main() {
   // Palet aktif disimpan global; kembalikan ke terang setelah tiap tes.
   tearDown(() => YbColors.use(Brightness.light));
@@ -42,8 +44,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Masuk dengan Google'));
-    await tester.pumpAndSettle();
+    await signInWithEmail(tester);
     await tester.tap(find.text('Lewati'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Akun'));
@@ -60,12 +61,16 @@ void main() {
     await openAccount(tester, store: store);
     expect(scaffoldColor(tester), YbPalette.light.bg);
 
+    await tester.ensureVisible(find.text('Gelap'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Gelap'));
     await tester.pumpAndSettle();
     expect(YbColors.isDark, isTrue);
     expect(scaffoldColor(tester), YbPalette.dark.bg);
     expect(store.read(CacheKeys.themeMode), '"dark"');
 
+    await tester.ensureVisible(find.text('Terang'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Terang'));
     await tester.pumpAndSettle();
     expect(YbColors.isDark, isFalse);

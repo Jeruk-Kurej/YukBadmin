@@ -49,3 +49,7 @@ app.*.map.json
 
 # Folder Documents tersinkron iCloud, jadi `build` adalah symlink ke luar Documents
 /build
+
+# Kunci Supabase lokal (salin dari env/dev.example.json)
+env/*.json
+!env/*.example.json

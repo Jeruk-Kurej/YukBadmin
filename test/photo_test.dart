@@ -92,6 +92,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  test('path foto lama dicari di folder app yang sekarang', () {
+    expect(
+      resolvePhotoPath('/app-lama/Documents/foto/1.jpg', '/app-baru/Documents'),
+      '/app-baru/Documents/foto/1.jpg',
+    );
+    expect(resolvePhotoPath('/lain/1.jpg', '/app-baru'), '/lain/1.jpg');
+    expect(resolvePhotoPath('/x/foto/1.jpg', null), '/x/foto/1.jpg');
+  });
+
   testWidgets('foto member ditambah lalu dihapus dengan konfirmasi', (
     tester,
   ) async {

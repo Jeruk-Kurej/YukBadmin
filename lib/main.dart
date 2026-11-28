@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'app/theme_mode.dart';
 import 'core/data/local_store.dart';
+import 'core/data/supabase_config.dart';
 import 'core/widgets/photo.dart';
 
 Future<void> main() async {
@@ -14,6 +16,12 @@ Future<void> main() async {
   // Cache dibuka sebelum app tampil supaya data tersimpan langsung terbaca.
   final store = await PrefsLocalStore.open();
   photoDocumentsDir = (await getApplicationDocumentsDirectory()).path;
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.anonKey,
+    );
+  }
   runApp(
     ProviderScope(
       overrides: [localStoreProvider.overrideWithValue(store)],
