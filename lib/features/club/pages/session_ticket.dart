@@ -110,12 +110,10 @@ class SessionTicket extends ConsumerWidget {
     final w = width == null ? screen - 32 : width!.clamp(0, screen - 56);
     final shortPb = pb.name.replaceFirst(' Surabaya', '');
 
-    final status = switch (rsvp) {
-      null => _IkutButton(
-        onPressed: () => ref
-            .read(membershipProvider.notifier)
-            .setRsvp(pb.id, event.id, Rsvp.ikut),
-      ),
+    // Belum menjawab: tanpa tombol. Seluruh tiket bisa diketuk untuk
+    // menjawab ikut atau tidak di halaman PB-ku.
+    final Widget? status = switch (rsvp) {
+      null => null,
       Rsvp.ikut when due != null && !due.paid && due.billable => _StatusChip(
         icon: Icons.account_balance_wallet_outlined,
         text: due.awaitingCheck
@@ -262,7 +260,7 @@ class _TicketBody extends StatelessWidget {
   final String time;
   final String venue;
   final int going;
-  final Widget status;
+  final Widget? status;
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +347,7 @@ class _TicketBody extends StatelessWidget {
                       ),
                     ],
                   ),
-                  status,
+                  ?status,
                 ],
               ),
             ],
@@ -358,27 +356,6 @@ class _TicketBody extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Satu tombol kecil "Ikut" menggantikan pasangan Ikut/Tidak ikut.
-/// Batal ikut dari halaman PB-ku (ketuk tiketnya).
-class _IkutButton extends StatelessWidget {
-  const _IkutButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => FilledButton(
-    style: FilledButton.styleFrom(
-      backgroundColor: YbColors.accent,
-      foregroundColor: YbColors.onAccent,
-      minimumSize: const Size(72, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      textStyle: YbText.body(size: 14, weight: FontWeight.w800),
-    ),
-    onPressed: onPressed,
-    child: const Text('Ikut'),
-  );
 }
 
 class _StatusChip extends StatelessWidget {

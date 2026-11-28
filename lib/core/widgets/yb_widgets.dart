@@ -399,18 +399,6 @@ class YbSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Garis limau kecil sebagai aksen sporty di tiap judul seksi.
-        ExcludeSemantics(
-          child: Container(
-            width: 4,
-            height: 18,
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              color: YbColors.accent,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
         Expanded(
           child: Semantics(
             header: true,
@@ -611,9 +599,9 @@ class _TabItem extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 52),
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            // Tab aktif: kapsul biru malam dengan ikon limau, seperti
-            // papan skor; tab lain tetap netral.
-            color: selected ? YbColors.night : Colors.transparent,
+            // Tab aktif: kapsul limau dengan ikon dan teks biru malam
+            // (Final Design V5); tab lain tetap netral.
+            color: selected ? YbColors.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(YbRadius.pill),
           ),
           child: Column(
@@ -622,7 +610,7 @@ class _TabItem extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: selected ? YbColors.accent : YbColors.ink,
+                color: selected ? YbColors.onAccent : YbColors.ink,
                 size: 22,
               ),
               const SizedBox(height: 2),
@@ -630,8 +618,8 @@ class _TabItem extends StatelessWidget {
                 label,
                 style: YbText.body(
                   size: 11,
-                  color: selected ? YbColors.onNight : YbColors.ink,
-                  weight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? YbColors.onAccent : YbColors.ink,
+                  weight: selected ? FontWeight.w700 : FontWeight.w500,
                   height: 1.2,
                 ),
                 maxLines: 1,

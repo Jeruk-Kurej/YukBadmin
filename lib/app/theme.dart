@@ -165,6 +165,24 @@ abstract final class YbColors {
   static const onAccent = Color(0xFF192533);
 }
 
+/// Warna tetap merek (Final Design V5): sama di tema terang dan gelap.
+abstract final class YbBrand {
+  /// Biru malam yang sedikit lebih terang, untuk chip dan kartu di atas hero.
+  static const nightRaised = Color(0xFF1E3A5C);
+
+  /// Cahaya biru samar di pojok hero.
+  static const nightGlow = Color(0xFF244B76);
+
+  /// Bulu kok di logo, dari atas ke bawah setelah bulu biru malam.
+  static const featherBlue = Color(0xFF2F5C9E);
+  static const featherBlueLight = Color(0xFF4A78BD);
+  static const featherLime = Color(0xFFC6DC6E);
+
+  /// Bulu biru versi logo di atas latar biru malam.
+  static const featherBlueOnDark = Color(0xFF7FA6DD);
+  static const featherBlueLightOnDark = Color(0xFFA9C8EF);
+}
+
 abstract final class YbRadius {
   static const sm = 8.0;
   static const md = 14.0;
@@ -197,6 +215,20 @@ abstract final class YbText {
     height: 1.05,
     letterSpacing: -0.8,
     fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  /// Judul hero dan nama PB di Final Design V5: tebal miring, gaya sporty.
+  static TextStyle hero({
+    double size = 34,
+    Color? color,
+    double height = 1.12,
+  }) => GoogleFonts.inter(
+    fontSize: size,
+    fontWeight: FontWeight.w800,
+    fontStyle: FontStyle.italic,
+    color: color ?? YbColors.ink,
+    height: height,
+    letterSpacing: -0.7,
   );
 
   static TextStyle body({

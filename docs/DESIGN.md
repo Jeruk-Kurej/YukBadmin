@@ -1,14 +1,15 @@
 # YukBadmin: arah desain
 
-Dibaca sebelum mengubah tampilan, di app (Flutter) maupun di Figma. Acuan sejak 27 November 2026 adalah halaman Figma **"Final Design v4"** (node `654:3932`), dan app sudah mengikutinya. Arah sebelumnya ("sporty, merah bata, Archivo miring", 22 November 2026) tidak dipakai lagi; halaman "Implementasi Nov 2026" tinggal arsip.
+Dibaca sebelum mengubah tampilan, di app (Flutter) maupun di Figma. Acuan sejak 28 November 2026 adalah halaman Figma **"Final Design V5"** (node `748:4344`), terutama baris "V5 Final" (Beranda, Cari PB, Perlengkapan, Akun, Riwayat transaksi, Notifikasi, terang dan gelap). "Final Design v4" (node `654:3932`) tinggal arsip.
 
-## 1. Arah: tenang, jelas, rapi seperti app bawaan iOS
+## 1. Arah: sporty dan hidup, tetap jelas
 
-YukBadmin dipakai di sela urusan lain: cek jadwal, konfirmasi ikut, kirim bukti transfer. Tampilannya tidak perlu ramai.
+UAT menilai tampilan v4 terlalu polos. V5 memberi energi olahraga tanpa mengorbankan kejelasan: YukBadmin tetap dipakai di sela urusan lain (cek jadwal, konfirmasi ikut, kirim bukti transfer).
 
-- **Biru malam sebagai warna utama**, hijau limau hanya untuk satu sorotan (tanggal sesi, tombol di kartu gelap).
-- **Daftar berkelompok** (kartu putih bersudut besar dengan garis pemisah) untuk menu, pengaturan, dan daftar orang.
-- **Satu kartu gelap per layar** paling banyak: hero dashboard, ajakan cari PB, saran perlengkapan.
+- **Hero biru malam di atas layar tab.** Beranda dan Akun memakai hero dengan tepi bawah melengkung seperti busur (`YbArcHero`); Cari PB, Perlengkapan, dan layar dorongan memakai kepala biru malam dengan lembar terang bersudut atas melengkung (`YbSheetHeader`).
+- **Limau sebagai aksen yang jelas:** tombol utama di hero, tab aktif, label sorotan di kartu PB, garis miring di pojok hero. Kartu dan tiket diketuk seluruhnya, tanpa tombol panah atau tombol kecil di dalamnya. Di luar hero, limau tetap hemat.
+- **Judul dan angka tebal miring** (`YbText.hero`, `YbText.score`) seperti papan skor.
+- **Daftar berkelompok** untuk menu, pengaturan, dan daftar orang.
 - **Privasi di depan:** jumlah yang ikut ditampilkan sebagai ikon orang tanpa nama.
 
 ## 2. Warna
@@ -23,7 +24,8 @@ Hanya dari `YbColors` di `lib/app/theme.dart` (variabel Figma "YukBadmin Warna v
 | Aksi utama | `primary`, `onPrimary` | #244B76, putih | #A9C8EF, #10263E | Tombol utama, tautan, pilihan aktif. Teks di atasnya selalu `onPrimary`, bukan `Colors.white` |
 | Pilihan | `primarySoft` | #E4EEF9 | #2C425C | Latar chip terpilih |
 | Garis | `control`, `line` | #6A7888, #E2E5E9 | #8592A2, #2C3846 | `control` untuk kolom isian dan tombol kedua |
-| Kartu gelap | `night`, `onNight` | #13283F, putih | sama | Sama di kedua mode |
+| Kartu gelap | `night`, `onNight` | #13283F, putih | sama | Hero dan kepala halaman. Sama di kedua mode |
+| Merek | `YbBrand.nightRaised`, `nightGlow`, warna bulu logo | #1E3A5C, #244B76 | sama | Chip dan panel di atas hero, logo |
 | Sorotan | `accent`, `onAccent`, `accentSoft` | #D5E88A | #D5E88A | Satu sorotan per layar |
 | Status | `success`, `warning`, `error`, `pending` + `…Soft` | | | Hanya untuk arti. Teks di atas `error` memakai `onError` |
 
@@ -33,7 +35,8 @@ Dilarang: ungu, gradasi warna-warni, teks bergradasi, `Colors.white` di atas `pr
 
 Satu keluarga huruf: **Inter** (`google_fonts`).
 
-- `YbText.display`: judul besar layar 32 tebal, judul seksi 20 semi tebal, judul kartu 17–18.
+- `YbText.hero`: judul hero dan nama PB di kartu, Inter 800 miring (34 di Beranda, 32 judul layar tab, 22 nama PB).
+- `YbText.display`: judul seksi 20 semi tebal, judul kartu 17–18, judul layar dorongan 22.
 - `YbText.score`: angka papan skor (tanggal, jam sesi), Inter 800 miring dengan angka tabular.
 - `YbText.body`: isi 15, keterangan 13 `muted`.
 - Tombol 16 semi tebal, kalimat biasa. Angka format Indonesia ("Rp150.000"), elipsis "…".
@@ -42,23 +45,28 @@ Satu keluarga huruf: **Inter** (`google_fonts`).
 
 - Tepi layar 16 px. Jarak antarseksi 24–28 px, judul seksi ke isinya 10 px.
 - Radius: `sm` 8, `md` 14 (kolom isian, kotak tanggal), `lg` 22 (kartu, daftar berkelompok, sheet), `pill` (tombol, kolom cari, tab bar).
-- Kartu tanpa garis tepi dan tanpa bayangan; kedalaman dari beda warna `surface` dan `bg`.
+- Kartu tanpa garis tepi; kedalaman dari beda warna `surface` dan `bg`. Bayangan hanya untuk hero berbusur dan chip pintasan di tepinya.
+- Hero berbusur: selisih tinggi sisi dan tengah busur 26–34 px. Lembar terang: sudut atas 28 px.
 - Area ketuk minimal 44 × 44 px.
 
 ## 5. Komponen (di `yb_widgets.dart` dan `manage_widgets.dart`)
 
-- **`YbPageTitle`**: judul besar 32 di layar tab, dengan subjudul dan satu tombol bulat 44 di kanan.
+- **`YbLogo` / `YbLogoMark`** (`yb_brand.dart`): logo kok lima bulu (biru malam, dua biru, dua limau), sama dengan komponen "V5 / Logo" di Figma. `onDark: true` di atas biru malam.
+- **`YbArcHero`**: hero biru malam berbusur dengan garis lapangan samar dan garis miring limau. Dipakai Beranda (logo, sapaan, judul, area + Cari PB, pintasan `YbHeroChip` di tepi busur) dan Akun (profil, panel Level dan Mode).
+- **`YbSheetHeader`**: kepala biru malam dengan lembar terang melengkung di bawahnya (Cari PB, Perlengkapan, Riwayat transaksi, Notifikasi). Tombol ikon di atasnya memakai `YbNightIconButton`.
+- **`YbPageTitle`**: judul besar 32 di layar tanpa hero, dengan subjudul dan satu tombol bulat 44 di kanan.
 - **`PageHeader`**: bilah navigasi layar dorongan: tombol kembali bulat, judul 17 di tengah, satu aksi teks di kanan (misalnya "Simpan", "Lihat").
 - **`YbGroup` + `YbListRow`**: daftar berkelompok. Baris: ikon dalam lingkaran atau avatar, judul, subjudul, lalu tag atau panah.
-- **`YbSectionTitle`**: judul seksi 20 dengan tautan opsional di kanan.
+- **`YbSectionTitle`**: judul seksi 20 dengan tautan opsional di kanan, tanpa garis aksen.
 - **`YbSegmented`**: pilihan 2–3 opsi tetap (Ikut/Tidak ikut, Mendatang/Riwayat, Masuk/Daftar, Sistem/Terang/Gelap).
 - **`YbChoiceChip`**: chip pil; terpilih = `primarySoft`, garis `primary`, tanda centang. `round: true` untuk kotak level F–S.
-- **`YbTabBar`**: tab bar pil mengambang dengan latar buram; tab aktif kapsul `night` + ikon limau. Layar yang tombolnya dekat tepi bawah harus tetap bisa digulir sampai tombol itu terlihat.
+- **`YbTabBar`**: tab bar pil mengambang dengan latar buram; tab aktif kapsul `accent` dengan ikon dan teks `onAccent`, sama di semua mode. Layar yang tombolnya dekat tepi bawah harus tetap bisa digulir sampai tombol itu terlihat.
+- **Kartu PB** (`PbPhotoCard`): foto dengan gradasi, label kuota di kiri atas, level `YbText.hero` di kanan atas, nama miring; di bawahnya jadwal, iuran `YbText.score`, jumlah dan jenis member.
 - **Tombol:** utama pil 52 `primary`; kedua bergaris `control` 44. Satu tombol utama per kartu.
 - **`TourBanner`**: kartu putih dengan ikon lampu limau, tombol "Mulai tur" dan tutup.
 - **Kotak tanggal**: latar `accent`, hari singkat kapital kecil + tanggal `YbText.score` (Jadwal pengurus).
-- **Tiket sesi** (`SessionTicket`, Beranda): potongan tanggal limau, garis sobekan putus-putus dengan dua lubang, badan `night` berisi foto PB sangat tipis (opasitas ±0,34, ditutup gradasi `night` dari kiri supaya teks terbaca; tanpa foto, garis lapangan putih samar). Isi: jenis sesi dan PB kapital kecil, jam `YbText.score`, tempat, jumlah yang ikut, lalu satu kontrol saja: tombol limau "Ikut" kalau belum menjawab, atau label status ("Kamu ikut", "Bayar Rp…", "Tidak ikut"). Batal ikut dari halaman PB-ku.
-- **Aksen sporty**: garis limau kecil di depan tiap `YbSectionTitle`, tab aktif berupa kapsul `night` dengan ikon limau, sapaan Beranda dengan garis lapangan samar, strip angka papan skor (angka miring tebal). Semua angka dari data asli.
+- **Tiket sesi** (`SessionTicket`, Beranda): potongan tanggal limau, garis sobekan putus-putus dengan dua lubang, badan `night` berisi foto PB sangat tipis (opasitas ±0,34, ditutup gradasi `night` dari kiri supaya teks terbaca; tanpa foto, garis lapangan putih samar). Isi: jenis sesi dan PB kapital kecil, jam `YbText.score`, tempat, jumlah yang ikut, dan label status kalau sudah menjawab ("Kamu ikut", "Bayar Rp…", "Tidak ikut"). Tanpa tombol: seluruh tiket diketuk untuk menjawab ikut atau batal di halaman PB-ku.
+- **Aksen sporty**: hero berbusur, garis miring limau, judul miring, tab aktif limau, strip angka papan skor. Semua angka dari data asli.
 
 ## 6. Gerak
 
@@ -86,5 +94,5 @@ Satu keluarga huruf: **Inter** (`google_fonts`).
 ## 10. Yang tidak boleh
 
 - Meniru identitas merek lain.
-- Lebih dari satu kartu gelap atau satu sorotan limau per layar.
+- Limau sebagai latar area luas di luar hero, atau lebih dari satu tombol utama limau di luar hero.
 - Teks contoh yang tertinggal atau data karangan yang terlihat asli.
