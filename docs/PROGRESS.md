@@ -92,6 +92,10 @@ Rute pengurus dan toko dilindungi di `router.dart`: kalau belum punya PB atau to
 
 Semua layar dari Figma sudah dibangun.
 
+### Supabase tahap 1 (27 November 2026)
+
+Project `nbmssaxkvrobuuvttjlf` sudah berisi skema, hak akses, dan data contoh. App memakai Supabase kalau dijalankan dengan `--dart-define-from-file=env/dev.json`; tanpa itu tetap memakai data lokal. Yang sudah lewat Supabase: daftar, masuk, keluar (Supabase Auth), preferensi di tabel `profiles`, daftar PB beserta jadwalnya, serta toko dan produk. Data pengurus dan member masih lokal (tahap 2). **RLS sengaja tidak dipakai** (keputusan tim); risikonya dan cara setup ada di [docs/SUPABASE.md](SUPABASE.md).
+
 ### Revisi DEPD: Beranda, tiket, dan toko partner (27 November 2026)
 
 - **Beranda**: sapaan "Halo, … / Siap *smash* minggu ini?" dengan garis lapangan samar, strip angka (sesi 7 hari ke depan, jumlah PB-ku, main bulan ini dari catatan hadir), lalu **Jadwalmu**: tiket semua sesi mendatang dari semua PB-ku, bisa digeser ke samping (`lib/features/club/pages/session_ticket.dart`). Kalau belum ada sesi, muncul keterangan dan tautan ke PB-ku.

@@ -49,20 +49,21 @@ class _PreferencesPageState extends ConsumerState<PreferencesPage> {
       : Level.b;
 
   void _finish({required bool save}) {
+    final prefs = ref.read(preferencesProvider.notifier);
     if (save) {
       final level = _levelChoices[_levelIndex].$2;
-      ref
-          .read(preferencesProvider.notifier)
-          .save(_draft.copyWith(level: level, clearLevel: level == null));
+      prefs.save(_draft.copyWith(level: level, clearLevel: level == null));
     }
+    // Disimpan ke akun (Supabase: tabel profiles) supaya halaman ini hanya
+    // muncul sekali, juga di HP lain. Kegagalan jaringan tidak menahan
+    // pengguna; preferensi tetap tersimpan di HP.
+    ref
+        .read(authServiceProvider)
+        .completePreferences(ref.read(preferencesProvider))
+        .catchError((Object _) {});
     if (widget.editing) {
       context.pop();
     } else {
-      // Halaman ini hanya muncul sekali per akun.
-      final email = ref.read(sessionProvider)?.email;
-      if (email != null) {
-        ref.read(accountsProvider.notifier).markPreferencesDone(email);
-      }
       context.go('/beranda');
     }
   }

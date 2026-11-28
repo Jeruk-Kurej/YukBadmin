@@ -271,6 +271,7 @@ class _EmailSignInPageState extends ConsumerState<EmailSignInPage> {
   var _newAccount = false;
   var _hidden = true;
   AuthError? _authError;
+  var _busy = false;
 
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
@@ -282,24 +283,46 @@ class _EmailSignInPageState extends ConsumerState<EmailSignInPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_busy) return;
     setState(() => _authError = null);
     if (!_form.currentState!.validate()) return;
-    final accounts = ref.read(accountsProvider.notifier);
+    final auth = ref.read(authServiceProvider);
     final email = _email.text.trim();
-    final error = _newAccount
-        ? accounts.register(
+    setState(() => _busy = true);
+    final outcome = _newAccount
+        ? await auth.register(
             name: _name.text,
             email: email,
             password: _password.text,
           )
-        : accounts.signIn(email: email, password: _password.text);
+        : await auth.signIn(email: email, password: _password.text);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final error = outcome.error;
     if (error != null) {
-      setState(() => _authError = error);
+      if (error.onEmail || error.onPassword) {
+        setState(() => _authError = error);
+      } else {
+        _message(error.message);
+      }
       return;
     }
-    context.go(accounts.preferencesDone(email) ? '/beranda' : '/preferensi');
+    if (outcome.needsVerification) {
+      // Akun dibuat; masuk setelah tautan verifikasi di email dibuka.
+      _password.clear();
+      _switchMode(false);
+      _message(
+        'Akun dibuat. Buka tautan verifikasi yang kami kirim ke $email, lalu masuk.',
+      );
+      return;
+    }
+    context.go(outcome.preferencesDone ? '/beranda' : '/preferensi');
   }
+
+  void _message(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
 
   void _switchMode(bool newAccount) => setState(() {
     _newAccount = newAccount;
@@ -361,9 +384,7 @@ class _EmailSignInPageState extends ConsumerState<EmailSignInPage> {
                     onChanged: (_) {
                       if (_authError != null) setState(() => _authError = null);
                     },
-                    forceErrorText:
-                        _authError == AuthError.emailTaken ||
-                            _authError == AuthError.notRegistered
+                    forceErrorText: _authError?.onEmail == true
                         ? _authError!.message
                         : null,
                     decoration: const InputDecoration(
@@ -384,7 +405,7 @@ class _EmailSignInPageState extends ConsumerState<EmailSignInPage> {
                     onChanged: (_) {
                       if (_authError != null) setState(() => _authError = null);
                     },
-                    forceErrorText: _authError == AuthError.wrongPassword
+                    forceErrorText: _authError?.onPassword == true
                         ? _authError!.message
                         : null,
                     onFieldSubmitted: (_) => _submit(),
@@ -422,7 +443,9 @@ class _EmailSignInPageState extends ConsumerState<EmailSignInPage> {
                 const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _submit,
-                  child: Text(_newAccount ? 'Buat akun' : 'Masuk'),
+                  child: Text(
+                    _busy ? 'Memuat…' : (_newAccount ? 'Buat akun' : 'Masuk'),
+                  ),
                 ),
                 if (!_newAccount)
                   TextButton(
