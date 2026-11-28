@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../app/tours.dart';
+import '../../../core/widgets/yb_brand.dart';
 import '../../../core/widgets/yb_widgets.dart';
 import '../data/pb_models.dart';
 import '../state/providers.dart';
@@ -38,6 +39,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     PbFilter filter,
     bool nightOnly, {
     bool levels = true,
+    bool onNight = false,
   }) {
     final myLevel = ref.watch(preferencesProvider).level;
     return [
@@ -45,12 +47,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         controller: _query,
         textInputAction: TextInputAction.search,
         onChanged: ref.read(filterProvider.notifier).setQuery,
-        style: YbText.body(size: 16),
+        style: YbText.body(size: 16, color: onNight ? YbColors.onAccent : null),
         decoration: InputDecoration(
           hintText: 'Cari nama PB, GOR, atau area',
+          hintStyle: onNight ? YbText.body(color: YbPalette.light.muted) : null,
           filled: true,
-          fillColor: YbColors.isDark ? YbColors.surface : YbColors.pendingSoft,
-          prefixIcon: Icon(Icons.search, color: YbColors.muted),
+          fillColor: onNight
+              ? Colors.white
+              : YbColors.isDark
+              ? YbColors.surface
+              : YbColors.pendingSoft,
+          prefixIcon: Icon(
+            Icons.search,
+            color: onNight ? YbColors.onAccent : YbColors.muted,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(YbRadius.pill),
             borderSide: BorderSide.none,
@@ -79,7 +89,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Text('Level', style: YbText.body(size: 13, color: YbColors.muted)),
+            Text(
+              'Level',
+              style: YbText.body(
+                size: 13,
+                color: onNight
+                    ? YbColors.onNight.withValues(alpha: 0.75)
+                    : YbColors.muted,
+              ),
+            ),
             const Spacer(),
             Flexible(
               child: InkWell(
@@ -88,12 +106,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Text(
                     myLevel == null
-                        ? 'Apa arti level?'
-                        : 'Levelmu ${myLevel.label} · Apa arti level?',
+                        ? 'Panduan level ›'
+                        : 'Levelmu ${myLevel.label} · Panduan level ›',
                     style: YbText.body(
                       size: 13,
                       weight: FontWeight.w600,
-                      color: YbColors.primary,
+                      color: onNight ? YbColors.accent : YbColors.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -113,6 +131,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   level: l,
                   selected: filter.levels.contains(l),
                   mine: l == myLevel,
+                  onNight: onNight,
                   onTap: () {
                     final next = {...filter.levels};
                     if (!next.remove(l)) next.add(l);
@@ -218,36 +237,53 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       );
     }
 
-    return SafeArea(
-      bottom: false,
+    return MediaQuery.removePadding(
+      context: context,
+      removeBottom: true,
       child: CustomScrollView(
         slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            sliver: SliverList.list(
-              children: [
-                YbPageTitle(
-                  'Cari PB',
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+          SliverToBoxAdapter(
+            child: YbSheetHeader(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      _RoundIcon(
+                      Expanded(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            'Cari PB',
+                            style: YbText.hero(
+                              size: 32,
+                              color: YbColors.onNight,
+                            ),
+                          ),
+                        ),
+                      ),
+                      YbNightIconButton(
                         icon: Icons.star_outline_rounded,
                         tooltip: 'PB tersimpan',
-                        onTap: () => context.push('/tersimpan'),
+                        onPressed: () => context.push('/tersimpan'),
                       ),
                       const SizedBox(width: 8),
-                      _RoundIcon(
+                      YbNightIconButton(
                         icon: Icons.map_outlined,
                         tooltip: 'Tampilkan peta',
-                        onTap: () => setState(() => _mapView = true),
+                        onPressed: () => setState(() => _mapView = true),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                ..._controls(filter, nightOnly),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  ..._controls(filter, nightOnly, onNight: true),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            sliver: SliverList.list(
+              children: [
                 Text(
                   count == null
                       ? 'Memuat PB…'
@@ -336,12 +372,16 @@ class _LevelSquare extends StatelessWidget {
     required this.selected,
     required this.mine,
     required this.onTap,
+    this.onNight = false,
   });
 
   final Level level;
   final bool selected;
   final bool mine;
   final VoidCallback onTap;
+
+  /// Tampil di atas kepala halaman biru malam.
+  final bool onNight;
 
   @override
   Widget build(BuildContext context) {
@@ -351,10 +391,20 @@ class _LevelSquare extends StatelessWidget {
       label: 'Level ${level.label}${mine ? ', levelmu' : ''}',
       excludeSemantics: true,
       child: Material(
-        color: selected ? YbColors.primary : YbColors.surface,
+        color: onNight
+            ? (selected
+                  ? YbColors.accent
+                  : Colors.white.withValues(alpha: 0.12))
+            : (selected ? YbColors.primary : YbColors.surface),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(YbRadius.md),
-          side: BorderSide(color: selected ? YbColors.primary : YbColors.line),
+          side: onNight
+              ? BorderSide(
+                  color: mine
+                      ? YbColors.accent
+                      : Colors.white.withValues(alpha: 0.16),
+                )
+              : BorderSide(color: selected ? YbColors.primary : YbColors.line),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -366,8 +416,10 @@ class _LevelSquare extends StatelessWidget {
                 level.label,
                 style: YbText.body(
                   size: 18,
-                  weight: FontWeight.w600,
-                  color: selected ? YbColors.onPrimary : YbColors.ink,
+                  weight: FontWeight.w700,
+                  color: onNight
+                      ? (selected ? YbColors.onAccent : YbColors.onNight)
+                      : (selected ? YbColors.onPrimary : YbColors.ink),
                 ),
               ),
             ),

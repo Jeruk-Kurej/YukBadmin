@@ -5,16 +5,19 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../app/tours.dart';
 import '../../core/widgets/tour.dart' show TourBanner;
+import '../../core/widgets/yb_brand.dart';
 import '../../core/widgets/yb_widgets.dart';
 import '../auth/preferences_page.dart' show areaOptions;
 import '../club/pages/session_ticket.dart';
 import '../manage/state/manage_providers.dart' show nowProvider;
 import '../club/state/club_providers.dart';
+import '../pb/data/pb_models.dart';
 import '../pb/pages/pb_card.dart';
 import '../pb/state/providers.dart';
 
-/// P3 Beranda: sapaan, angka papan skor, tiket semua jadwal PB-ku, lalu PB
-/// dekat kamu.
+/// P3 Beranda (Final Design V5): hero biru berbusur berisi sapaan, pilihan
+/// area, dan pintasan filter. Member juga melihat papan skor dan tiket semua
+/// jadwal PB-ku. Setelah itu PB dekat kamu.
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -41,46 +44,17 @@ class HomePage extends ConsumerWidget {
             e,
     ].length;
 
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 24),
+    // Bukan ListView, supaya tiket dan banner tur sudah dibangun dan bisa
+    // disorot tur meski berada di bawah hero.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Greeting(
+          _HomeHero(
             name: user?.firstName ?? 'pemain',
             member: isMember,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _AreaPill(area: prefs.area),
-                const SizedBox(width: 8),
-                Semantics(
-                  button: true,
-                  label: 'Buka akun',
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => context.go('/akun'),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: YbColors.night,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        user?.initials ?? '?',
-                        style: YbText.body(
-                          size: 14,
-                          weight: FontWeight.w800,
-                          color: YbColors.accent,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            area: prefs.area,
           ),
           if (!tourSeen) ...[
             const SizedBox(height: 16),
@@ -118,14 +92,9 @@ class HomePage extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             const ScheduleRail(),
-          ] else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _FirstPbCard(key: TourKeys.homeSearch, area: prefs.area),
-            ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
           Padding(
-            key: isMember ? TourKeys.homeSearch : null,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: YbSectionTitle(
               'PB dekat kamu',
@@ -178,9 +147,174 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// Tombol area di kanan judul. Mengganti area langsung menyaring PB.
-class _AreaPill extends ConsumerWidget {
-  const _AreaPill({required this.area});
+/// Hero Beranda: logo, sapaan, judul miring, area + Cari PB, dan tiga
+/// pintasan filter yang duduk di tepi busur.
+class _HomeHero extends ConsumerWidget {
+  const _HomeHero({
+    required this.name,
+    required this.member,
+    required this.area,
+  });
+
+  final String name;
+  final bool member;
+  final String area;
+
+  static const _depth = 34.0;
+
+  void _searchWith(BuildContext context, WidgetRef ref, PbFilter filter) {
+    ref.read(filterProvider.notifier).set(filter);
+    context.go('/cari');
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final title = YbText.hero(size: 34, color: YbColors.onNight);
+    final lime = title.copyWith(color: YbColors.accent);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        YbArcHero(
+          depth: _depth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const YbLogo(size: 42, onDark: true),
+              const SizedBox(height: 18),
+              Text(
+                'Halo, $name',
+                style: YbText.body(
+                  size: 15,
+                  weight: FontWeight.w500,
+                  color: YbColors.onNight.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Semantics(
+                header: true,
+                child: Text.rich(
+                  member
+                      ? TextSpan(
+                          children: [
+                            const TextSpan(text: 'Siap '),
+                            TextSpan(text: 'smash', style: lime),
+                            const TextSpan(text: '\nminggu ini?'),
+                          ],
+                        )
+                      : TextSpan(
+                          children: [
+                            const TextSpan(text: 'Yuk cari PB\n'),
+                            TextSpan(text: 'pertamamu.', style: lime),
+                          ],
+                        ),
+                  style: title,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                member
+                    ? 'Mau cari PB lain? Pilih area mainmu.'
+                    : 'Biasanya kamu main di area mana?',
+                style: YbText.body(
+                  size: 14,
+                  color: YbColors.onNight.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: 14),
+              LayoutBuilder(
+                key: TourKeys.homeSearch,
+                builder: (context, box) {
+                  final search = FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: YbColors.accent,
+                      foregroundColor: YbColors.onAccent,
+                      minimumSize: const Size(0, 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      textStyle: YbText.body(size: 16, weight: FontWeight.w700),
+                    ),
+                    onPressed: () => context.go('/cari'),
+                    icon: const Icon(Icons.search, size: 20),
+                    label: const Text('Cari PB'),
+                  );
+                  // Layar sempit atau teks besar: area dan tombol bertumpuk.
+                  final narrow =
+                      box.maxWidth < 340 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.15;
+                  if (narrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _AreaField(area: area),
+                        const SizedBox(height: 8),
+                        search,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: _AreaField(area: area)),
+                      const SizedBox(width: 8),
+                      search,
+                    ],
+                  );
+                },
+              ),
+              // Ruang untuk pintasan yang duduk di tepi busur.
+              const SizedBox(height: 44),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 6,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                YbHeroChip(
+                  icon: Icons.nights_stay_outlined,
+                  label: 'Main malam',
+                  onTap: () => _searchWith(
+                    context,
+                    ref,
+                    const PbFilter(dayParts: {DayPart.malam}),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                YbHeroChip(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Akhir pekan',
+                  onTap: () => _searchWith(
+                    context,
+                    ref,
+                    const PbFilter(weekendOnly: true),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                YbHeroChip(
+                  icon: Icons.spa_outlined,
+                  label: 'Pemula',
+                  onTap: () => _searchWith(
+                    context,
+                    ref,
+                    const PbFilter(levels: {Level.f, Level.e}),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kolom area putih di hero. Mengganti area langsung menyaring PB.
+class _AreaField extends ConsumerWidget {
+  const _AreaField({required this.area});
 
   final String area;
 
@@ -191,29 +325,40 @@ class _AreaPill extends ConsumerWidget {
       label: 'Area: $area. Ganti area',
       excludeSemantics: true,
       child: Material(
-        color: YbColors.surface,
-        shape: StadiumBorder(side: BorderSide(color: YbColors.line)),
+        color: Colors.white,
+        shape: const StadiumBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => _pickArea(context, ref),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44, maxWidth: 170),
+            constraints: const BoxConstraints(minHeight: 52),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.place_outlined, size: 18, color: YbColors.ink),
-                  const SizedBox(width: 4),
-                  Flexible(
+                  const Icon(
+                    Icons.place_outlined,
+                    size: 20,
+                    color: YbColors.onAccent,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
                     child: Text(
                       area,
-                      style: YbText.body(size: 14, weight: FontWeight.w600),
+                      style: YbText.body(
+                        size: 15,
+                        weight: FontWeight.w600,
+                        color: YbColors.onAccent,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Icon(Icons.expand_more, size: 18, color: YbColors.ink),
+                  const Icon(
+                    Icons.expand_more,
+                    size: 20,
+                    color: YbColors.onAccent,
+                  ),
                 ],
               ),
             ),
@@ -253,149 +398,6 @@ Future<void> _pickArea(BuildContext context, WidgetRef ref) async {
   );
   if (picked != null) {
     ref.read(preferencesProvider.notifier).save(current.copyWith(area: picked));
-  }
-}
-
-/// P3c Beranda pemain baru: ajak memilih area lalu mencari PB.
-class _FirstPbCard extends ConsumerWidget {
-  const _FirstPbCard({super.key, required this.area});
-
-  final String area;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: YbColors.night,
-        borderRadius: BorderRadius.circular(YbRadius.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Biasanya kamu main di area mana?',
-            style: YbText.display(size: 24, color: YbColors.onNight),
-          ),
-          const SizedBox(height: 16),
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(YbRadius.md),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(YbRadius.md),
-              onTap: () => _pickArea(context, ref),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.place_outlined, color: Color(0xFF192533)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        area,
-                        style: YbText.body(
-                          size: 16,
-                          color: const Color(0xFF192533),
-                        ),
-                      ),
-                    ),
-                    const Icon(Icons.expand_more, color: Color(0xFF192533)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: YbColors.accent,
-              foregroundColor: YbColors.onAccent,
-            ),
-            onPressed: () => context.go('/cari'),
-            child: const Text('Cari PB'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Sapaan di atas Beranda dengan garis lapangan samar di pojok.
-class _Greeting extends StatelessWidget {
-  const _Greeting({
-    required this.name,
-    required this.member,
-    required this.trailing,
-  });
-
-  final String name;
-  final bool member;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = YbText.display(size: 32);
-    return Stack(
-      children: [
-        Positioned(
-          right: -40,
-          top: -12,
-          width: 230,
-          height: 130,
-          child: ExcludeSemantics(
-            child: CustomPaint(painter: _HeaderCourt(YbColors.ink)),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Halo, $name',
-                      style: YbText.body(
-                        size: 15,
-                        weight: FontWeight.w500,
-                        color: YbColors.muted,
-                      ),
-                    ),
-                  ),
-                  trailing,
-                ],
-              ),
-              const SizedBox(height: 6),
-              Semantics(
-                header: true,
-                child: member
-                    ? Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(text: 'Siap '),
-                            TextSpan(
-                              text: 'smash',
-                              style: title.copyWith(
-                                fontStyle: FontStyle.italic,
-                                color: YbColors.primary,
-                              ),
-                            ),
-                            const TextSpan(text: ' minggu ini?'),
-                          ],
-                        ),
-                        style: title,
-                      )
-                    : Text('Yuk cari PB pertamamu', style: title),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -451,31 +453,4 @@ class _ScoreStrip extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Garis lapangan tipis sebagai hiasan sapaan.
-class _HeaderCourt extends CustomPainter {
-  const _HeaderCourt(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color.withValues(alpha: 0.06)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    final r = Offset.zero & size;
-    canvas.drawRect(r.deflate(2), p);
-    final cx = r.center.dx;
-    for (final x in [cx, cx - r.width * 0.18, cx + r.width * 0.18]) {
-      canvas.drawLine(Offset(x, r.top), Offset(x, r.bottom), p);
-    }
-    for (final y in [r.top + 14, r.bottom - 14]) {
-      canvas.drawLine(Offset(r.left, y), Offset(r.right, y), p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_HeaderCourt oldDelegate) => oldDelegate.color != color;
 }

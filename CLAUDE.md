@@ -6,7 +6,7 @@ File ini dibaca otomatis oleh Claude Code setiap sesi di folder ini. Konteks len
 
 Aplikasi Flutter (Android dan iOS) untuk mata kuliah DEPD, Universitas Ciputra, Team OHEB. Menghubungkan orang yang baru mau main badminton dengan PB (klub komunitas), membantu pengurus PB mengelola member, kehadiran, dan iuran, serta menampilkan perlengkapan dari toko partner.
 
-Desain referensi (bukan spek kaku): Figma file `tHtwD5zOj78nGucjBPecnc`, halaman "Final Design v4" (node `654:3932`). Halaman "Final Design" lama (node `170:2`) tinggal arsip.
+Desain referensi (bukan spek kaku): Figma file `tHtwD5zOj78nGucjBPecnc`, halaman "Final Design V5" (node `748:4344`), terutama baris "V5 Final". "Final Design v4" (node `654:3932`) dan "Final Design" lama (node `170:2`) tinggal arsip.
 
 ## Perintah
 

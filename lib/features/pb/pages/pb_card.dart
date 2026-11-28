@@ -158,7 +158,7 @@ class PbPhotoCard extends StatelessWidget {
                         ),
                         Text(
                           pb.levelRange,
-                          style: YbText.display(size: 30, color: Colors.white),
+                          style: YbText.hero(size: 32, color: Colors.white),
                         ),
                       ],
                     ),
@@ -173,7 +173,7 @@ class PbPhotoCard extends StatelessWidget {
                     children: [
                       Text(
                         pb.name,
-                        style: YbText.display(size: 22, color: Colors.white),
+                        style: YbText.hero(size: 22, color: Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -205,13 +205,30 @@ class PbPhotoCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text(
-                      formatRupiahShort(pb.feePerSession),
-                      style: YbText.body(size: 17, weight: FontWeight.w700),
-                    ),
-                    Text(
-                      ' /sesi',
-                      style: YbText.body(size: 12, color: YbColors.muted),
+                    const SizedBox(width: 8),
+                    // Angka miring lebih lebar; di layar kecil atau teks
+                    // besar diperkecil supaya tidak meluber.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              formatRupiahShort(pb.feePerSession),
+                              style: YbText.score(size: 18),
+                            ),
+                            Text(
+                              ' /sesi',
+                              style: YbText.body(
+                                size: 12,
+                                color: YbColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../app/theme_mode.dart';
 import '../../app/tours.dart';
+import '../../core/widgets/yb_brand.dart';
 import '../../core/widgets/yb_widgets.dart';
 import '../shop/data/partner_invite.dart';
 import '../club/state/club_providers.dart';
@@ -12,6 +13,7 @@ import '../gear/state/gear_providers.dart';
 import '../manage/data/manage_models.dart' show DuesSystemLabel;
 import '../manage/state/manage_providers.dart';
 import '../pb/data/pb_models.dart';
+import '../pb/pages/level_guide.dart';
 import '../pb/state/providers.dart';
 
 /// Mode akun yang sedang dipakai. Halaman Akun sama untuk ketiganya, hanya
@@ -109,313 +111,527 @@ class AccountPage extends ConsumerWidget {
       );
     }
 
-    return SafeArea(
-      bottom: false,
-      // Bukan ListView, supaya semua bagian sudah dibangun dan bisa disorot tur.
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            YbPageTitle(
-              'Akun',
-              trailing: IconButton(
-                tooltip: 'Bantuan',
-                onPressed: () => context.push('/bantuan'),
-                style: IconButton.styleFrom(
-                  backgroundColor: YbColors.surface,
-                  fixedSize: const Size(44, 44),
+    final modeOptions = <(AccountMode, String)>[
+      (AccountMode.player, 'Pemain'),
+      (AccountMode.manager, 'Pengurus'),
+      if (shop.hasShop) (AccountMode.shop, 'Toko'),
+    ];
+    final (panelLabel, panelValue) = switch (mode) {
+      AccountMode.player => (
+        'Level pemain',
+        prefs.level?.label ?? '–',
+      ),
+      AccountMode.manager => ('PB-mu', manage.pb?.name ?? '-'),
+      AccountMode.shop => ('Tokomu', shop.shop?.name ?? '-'),
+    };
+
+    // Bukan ListView, supaya semua bagian sudah dibangun dan bisa disorot tur.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          YbArcHero(
+            depth: 26,
+            slashes: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Akun',
+                          style: YbText.hero(size: 32, color: YbColors.onNight),
+                        ),
+                      ),
+                    ),
+                    YbNightIconButton(
+                      icon: Icons.help_outline,
+                      tooltip: 'Bantuan',
+                      onPressed: () => context.push('/bantuan'),
+                    ),
+                  ],
                 ),
-                icon: Icon(Icons.help_outline, color: YbColors.ink),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: YbColors.night,
-                borderRadius: BorderRadius.circular(YbRadius.lg),
-              ),
-              child: Row(
-                children: [
-                  YbAvatar(user?.initials ?? '?', size: 52),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name ?? '-',
-                          style: YbText.display(
-                            size: 20,
-                            color: YbColors.onNight,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: YbBrand.nightRaised,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: YbColors.onNight.withValues(alpha: 0.55),
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        user?.initials ?? '?',
+                        style: YbText.body(
+                          size: 20,
+                          weight: FontWeight.w800,
+                          color: YbColors.onNight,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? '-',
+                            style: YbText.display(
+                              size: 21,
+                              color: YbColors.onNight,
+                            ),
                           ),
+                          Text(
+                            user?.email ?? '-',
+                            style: YbText.body(
+                              size: 14,
+                              color: YbColors.onNight.withValues(alpha: 0.75),
+                            ),
+                          ),
+                          Text(
+                            modeLine,
+                            style: YbText.body(
+                              size: 12,
+                              weight: FontWeight.w600,
+                              color: YbColors.onNight.withValues(alpha: 0.75),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _ModePanel(
+                  label: panelLabel,
+                  value: panelValue,
+                  onGuide: mode == AccountMode.player
+                      ? () => showLevelGuide(context)
+                      : null,
+                  options: modeOptions,
+                  selected: mode,
+                  onSelect: (m) {
+                    if (m != mode) switchTo(m);
+                  },
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (mode == AccountMode.player &&
+                    user != null &&
+                    !user.emailVerified) ...[
+                  const SizedBox(height: 12),
+                  _VerifyBanner(email: user.email),
+                ],
+                const SizedBox(height: 24),
+                ...switch (mode) {
+                  AccountMode.player => [
+                    YbSectionTitle('Aktivitas saya'),
+                    const SizedBox(height: 10),
+                    YbGroup(
+                      children: [
+                        YbListRow(
+                          key: TourKeys.accountClub,
+                          icon: Icons.calendar_today_outlined,
+                          title: 'PB-ku',
+                          subtitle: clubCount == 0
+                              ? 'PB tempat kamu jadi member'
+                              : 'Jadwal dan iuran di $clubCount PB',
+                          onTap: () => context.push('/pb-ku'),
                         ),
-                        Text(
-                          user?.email ?? '-',
-                          style: YbText.body(size: 14, color: Colors.white70),
+                        YbListRow(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Riwayat transaksi',
+                          subtitle: 'Iuran yang sudah dan belum dibayar',
+                          onTap: () => context.push('/riwayat'),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          modeLine,
+                        YbListRow(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Notifikasi',
+                          subtitle: 'Pengingat sesi dan status iuran',
+                          onTap: () => context.push('/notifikasi'),
+                        ),
+                        YbListRow(
+                          icon: Icons.star_outline_rounded,
+                          title: 'PB tersimpan',
+                          subtitle: savedCount == 0
+                              ? 'Lihat PB yang kamu simpan'
+                              : '$savedCount PB kamu simpan',
+                          onTap: () => context.push('/tersimpan'),
+                        ),
+                        YbListRow(
+                          icon: Icons.tune,
+                          title: 'Preferensi main',
+                          subtitle: '$levelText · ${prefs.area} · $dayText',
+                          onTap: () => context.push('/preferensi/ubah'),
+                        ),
+                        YbListRow(
+                          icon: Icons.play_circle_outline,
+                          title: 'Tur aplikasi',
+                          subtitle: 'Lihat lagi cara memakai YukBadmin',
+                          onTap: () => startPlayerTour(context, ref),
+                        ),
+                        YbListRow(
+                          icon: Icons.chat_bubble_outline,
+                          title: 'Bantuan',
+                          subtitle: 'Pertanyaan umum dan kontak',
+                          onTap: () => context.push('/bantuan'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  AccountMode.manager => [
+                    YbSectionTitle(manage.pb?.name ?? 'PB-mu'),
+                    const SizedBox(height: 10),
+                    YbGroup(
+                      children: [
+                        YbListRow(
+                          key: TourKeys.profileManagers,
+                          icon: Icons.storefront_outlined,
+                          title: 'Profil PB',
+                          subtitle: 'Nama, lokasi, jadwal, foto',
+                          onTap: () => context.push('/kelola/profil'),
+                        ),
+                        YbListRow(
+                          icon: Icons.account_balance_wallet_outlined,
+                          title: 'Sistem iuran',
+                          subtitle: manage.duesSystem.summary(
+                            manage.pb?.feePerSession ?? 0,
+                          ),
+                          onTap: () => context.push('/kelola/sistem-iuran'),
+                        ),
+                        YbListRow(
+                          icon: Icons.groups_outlined,
+                          title: 'Pengurus PB',
+                          subtitle: manage.coManagers.isEmpty
+                              ? 'Baru kamu sendiri'
+                              : 'Kamu dan ${manage.coManagers.length} pengurus lain',
+                          onTap: () => context.push('/kelola/pengurus'),
+                        ),
+                        YbListRow(
+                          icon: Icons.visibility_outlined,
+                          title: 'Lihat sebagai member',
+                          subtitle: 'Coba tampilan member PB-mu',
+                          onTap: () => context.push('/kelola/lihat-member'),
+                        ),
+                        YbListRow(
+                          icon: Icons.play_circle_outline,
+                          title: 'Tur pengurus',
+                          subtitle: 'Lihat lagi cara mengelola PB',
+                          onTap: () {
+                            context.go('/kelola/beranda');
+                            startManagerTour(context, ref);
+                          },
+                        ),
+                        YbListRow(
+                          icon: Icons.chat_bubble_outline,
+                          title: 'Bantuan',
+                          subtitle: 'Pertanyaan umum dan kontak',
+                          onTap: () => context.push('/bantuan'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  AccountMode.shop => [
+                    YbSectionTitle(shop.shop?.name ?? 'Tokomu'),
+                    const SizedBox(height: 10),
+                    YbGroup(
+                      children: [
+                        YbListRow(
+                          icon: Icons.storefront_outlined,
+                          title: 'Profil toko',
+                          subtitle: 'Alamat, jam buka, WhatsApp',
+                          onTap: () => context.push('/toko-saya/profil'),
+                        ),
+                        YbListRow(
+                          icon: Icons.chat_bubble_outline,
+                          title: 'Bantuan',
+                          subtitle: 'Pertanyaan umum dan kontak',
+                          onTap: () => context.push('/bantuan'),
+                        ),
+                      ],
+                    ),
+                  ],
+                },
+                const SizedBox(height: 24),
+                YbSectionTitle('Peran lain'),
+                const SizedBox(height: 10),
+                YbGroup(
+                  children: [
+                    role(
+                      target: AccountMode.player,
+                      title: 'Pemain',
+                      subtitle: 'Cari dan simpan PB',
+                      registered: true,
+                      registerLabel: 'Beralih',
+                    ),
+                    role(
+                      key: TourKeys.accountManagerRole,
+                      target: AccountMode.manager,
+                      title: 'Pengurus PB',
+                      subtitle: 'Kelola PB-mu',
+                      registered: manage.hasPb,
+                      registerLabel: 'Daftarkan',
+                    ),
+                    // Toko partner hanya untuk toko yang diundang tim, jadi
+                    // peran ini baru muncul setelah toko terdaftar.
+                    if (shop.hasShop)
+                      role(
+                        target: AccountMode.shop,
+                        title: 'Toko partner',
+                        subtitle: 'Tampilkan produk tokomu',
+                        registered: true,
+                        registerLabel: 'Beralih',
+                      ),
+                  ],
+                ),
+                if (!shop.hasShop) ...[
+                  const SizedBox(height: 10),
+                  YbGroup(
+                    children: [
+                      YbListRow(
+                        icon: Icons.storefront_outlined,
+                        title: 'Punya toko perlengkapan?',
+                        subtitle:
+                            'Jadi toko partner lewat undangan tim YukBadmin',
+                        onTap: () => showPartnerInviteSheet(context),
+                      ),
+                    ],
+                  ),
+                ],
+                if (mode == AccountMode.player) ...[
+                  const SizedBox(height: 24),
+                  YbSectionTitle('Privasi'),
+                  const SizedBox(height: 10),
+                  YbGroup(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        value: profilePublic,
+                        onChanged: (v) =>
+                            ref.read(profilePublicProvider.notifier).set(v),
+                        title: Text(
+                          'Tampilkan profilku ke sesama member',
+                          style: YbText.body(size: 16, weight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Nama, level, dan area main. Kontak tidak pernah tampil.',
+                          style: YbText.body(size: 13, color: YbColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 24),
+                YbSectionTitle('Tampilan'),
+                const SizedBox(height: 10),
+                YbSegmented<ThemeMode>(
+                  options: const [
+                    (ThemeMode.system, 'Sistem', Icons.phone_iphone),
+                    (ThemeMode.light, 'Terang', Icons.light_mode_outlined),
+                    (ThemeMode.dark, 'Gelap', Icons.dark_mode_outlined),
+                  ],
+                  selected: themeMode,
+                  onChanged: (m) => ref.read(themeModeProvider.notifier).set(m),
+                ),
+                const SizedBox(height: 28),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    foregroundColor: YbColors.error,
+                    side: BorderSide(color: YbColors.line),
+                  ),
+                  onPressed: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Keluar dari YukBadmin?'),
+                        content: const Text(
+                          'PB, toko, dan simpananmu tetap ada di HP ini. Semuanya muncul lagi saat kamu masuk dengan akun yang sama.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Batal'),
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: YbColors.error,
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Keluar'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok != true) return;
+                    // Data tiap akun disimpan terpisah, jadi akun berikutnya tetap
+                    // mulai bersih tanpa menghapus apa pun.
+                    ref.read(sessionProvider.notifier).signOut();
+                  },
+                  icon: const Icon(Icons.logout, size: 20),
+                  label: const Text('Keluar'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Panel level dan pilihan mode di hero Akun (Final Design V5).
+class _ModePanel extends StatelessWidget {
+  const _ModePanel({
+    required this.label,
+    required this.value,
+    required this.onGuide,
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback? onGuide;
+  final List<(AccountMode, String)> options;
+  final AccountMode selected;
+  final ValueChanged<AccountMode> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final faint = YbColors.onNight.withValues(alpha: 0.8);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: YbBrand.nightGlow.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(YbRadius.lg),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(label, style: YbText.body(size: 12, color: faint)),
+                  Text(
+                    value,
+                    style: YbText.hero(size: 24, color: YbColors.onNight),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (onGuide != null)
+                    InkWell(
+                      onTap: onGuide,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          'Panduan level ›',
                           style: YbText.body(
                             size: 13,
                             weight: FontWeight.w600,
-                            color: YbColors.onNight,
+                            color: YbColors.accent,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            VerticalDivider(
+              width: 20,
+              color: Colors.white.withValues(alpha: 0.25),
+            ),
+            Expanded(
+              flex: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Mode', style: YbText.body(size: 12, color: faint)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(YbRadius.pill),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        for (final (m, text) in options)
+                          Expanded(
+                            child: Semantics(
+                              button: true,
+                              selected: m == selected,
+                              label: 'Mode $text',
+                              excludeSemantics: true,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => onSelect(m),
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    minHeight: 40,
+                                  ),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: m == selected
+                                        ? YbColors.accent
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(
+                                      YbRadius.pill,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    text,
+                                    style: YbText.body(
+                                      size: 13,
+                                      weight: m == selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: m == selected
+                                          ? YbColors.onAccent
+                                          : YbColors.onNight,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-            if (mode == AccountMode.player &&
-                user != null &&
-                !user.emailVerified) ...[
-              const SizedBox(height: 12),
-              _VerifyBanner(email: user.email),
-            ],
-            const SizedBox(height: 24),
-            ...switch (mode) {
-              AccountMode.player => [
-                YbSectionTitle('Aktivitas'),
-                const SizedBox(height: 10),
-                YbGroup(
-                  children: [
-                    YbListRow(
-                      key: TourKeys.accountClub,
-                      icon: Icons.calendar_today_outlined,
-                      title: 'PB-ku',
-                      subtitle: clubCount == 0
-                          ? 'PB tempat kamu jadi member'
-                          : 'Jadwal dan iuran di $clubCount PB',
-                      onTap: () => context.push('/pb-ku'),
-                    ),
-                    YbListRow(
-                      icon: Icons.star_outline_rounded,
-                      title: 'PB tersimpan',
-                      subtitle: savedCount == 0
-                          ? 'Lihat PB yang kamu simpan'
-                          : '$savedCount PB kamu simpan',
-                      onTap: () => context.push('/tersimpan'),
-                    ),
-                    YbListRow(
-                      icon: Icons.tune,
-                      title: 'Preferensi main',
-                      subtitle: '$levelText · ${prefs.area} · $dayText',
-                      onTap: () => context.push('/preferensi/ubah'),
-                    ),
-                    YbListRow(
-                      icon: Icons.play_circle_outline,
-                      title: 'Tur aplikasi',
-                      subtitle: 'Lihat lagi cara memakai YukBadmin',
-                      onTap: () => startPlayerTour(context, ref),
-                    ),
-                    YbListRow(
-                      icon: Icons.chat_bubble_outline,
-                      title: 'Bantuan',
-                      subtitle: 'Pertanyaan umum dan kontak',
-                      onTap: () => context.push('/bantuan'),
-                    ),
-                  ],
-                ),
-              ],
-              AccountMode.manager => [
-                YbSectionTitle(manage.pb?.name ?? 'PB-mu'),
-                const SizedBox(height: 10),
-                YbGroup(
-                  children: [
-                    YbListRow(
-                      key: TourKeys.profileManagers,
-                      icon: Icons.storefront_outlined,
-                      title: 'Profil PB',
-                      subtitle: 'Nama, lokasi, jadwal, foto',
-                      onTap: () => context.push('/kelola/profil'),
-                    ),
-                    YbListRow(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Sistem iuran',
-                      subtitle: manage.duesSystem.summary(
-                        manage.pb?.feePerSession ?? 0,
-                      ),
-                      onTap: () => context.push('/kelola/sistem-iuran'),
-                    ),
-                    YbListRow(
-                      icon: Icons.groups_outlined,
-                      title: 'Pengurus PB',
-                      subtitle: manage.coManagers.isEmpty
-                          ? 'Baru kamu sendiri'
-                          : 'Kamu dan ${manage.coManagers.length} pengurus lain',
-                      onTap: () => context.push('/kelola/pengurus'),
-                    ),
-                    YbListRow(
-                      icon: Icons.visibility_outlined,
-                      title: 'Lihat sebagai member',
-                      subtitle: 'Coba tampilan member PB-mu',
-                      onTap: () => context.push('/kelola/lihat-member'),
-                    ),
-                    YbListRow(
-                      icon: Icons.play_circle_outline,
-                      title: 'Tur pengurus',
-                      subtitle: 'Lihat lagi cara mengelola PB',
-                      onTap: () {
-                        context.go('/kelola/beranda');
-                        startManagerTour(context, ref);
-                      },
-                    ),
-                    YbListRow(
-                      icon: Icons.chat_bubble_outline,
-                      title: 'Bantuan',
-                      subtitle: 'Pertanyaan umum dan kontak',
-                      onTap: () => context.push('/bantuan'),
-                    ),
-                  ],
-                ),
-              ],
-              AccountMode.shop => [
-                YbSectionTitle(shop.shop?.name ?? 'Tokomu'),
-                const SizedBox(height: 10),
-                YbGroup(
-                  children: [
-                    YbListRow(
-                      icon: Icons.storefront_outlined,
-                      title: 'Profil toko',
-                      subtitle: 'Alamat, jam buka, WhatsApp',
-                      onTap: () => context.push('/toko-saya/profil'),
-                    ),
-                    YbListRow(
-                      icon: Icons.chat_bubble_outline,
-                      title: 'Bantuan',
-                      subtitle: 'Pertanyaan umum dan kontak',
-                      onTap: () => context.push('/bantuan'),
-                    ),
-                  ],
-                ),
-              ],
-            },
-            const SizedBox(height: 24),
-            YbSectionTitle('Peran lain'),
-            const SizedBox(height: 10),
-            YbGroup(
-              children: [
-                role(
-                  target: AccountMode.player,
-                  title: 'Pemain',
-                  subtitle: 'Cari dan simpan PB',
-                  registered: true,
-                  registerLabel: 'Beralih',
-                ),
-                role(
-                  key: TourKeys.accountManagerRole,
-                  target: AccountMode.manager,
-                  title: 'Pengurus PB',
-                  subtitle: 'Kelola PB-mu',
-                  registered: manage.hasPb,
-                  registerLabel: 'Daftarkan',
-                ),
-                // Toko partner hanya untuk toko yang diundang tim, jadi
-                // peran ini baru muncul setelah toko terdaftar.
-                if (shop.hasShop)
-                  role(
-                    target: AccountMode.shop,
-                    title: 'Toko partner',
-                    subtitle: 'Tampilkan produk tokomu',
-                    registered: true,
-                    registerLabel: 'Beralih',
-                  ),
-              ],
-            ),
-            if (!shop.hasShop) ...[
-              const SizedBox(height: 10),
-              YbGroup(
-                children: [
-                  YbListRow(
-                    icon: Icons.storefront_outlined,
-                    title: 'Punya toko perlengkapan?',
-                    subtitle: 'Jadi toko partner lewat undangan tim YukBadmin',
-                    onTap: () => showPartnerInviteSheet(context),
-                  ),
-                ],
-              ),
-            ],
-            if (mode == AccountMode.player) ...[
-              const SizedBox(height: 24),
-              YbSectionTitle('Privasi'),
-              const SizedBox(height: 10),
-              YbGroup(
-                children: [
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    value: profilePublic,
-                    onChanged: (v) =>
-                        ref.read(profilePublicProvider.notifier).set(v),
-                    title: Text(
-                      'Tampilkan profilku ke sesama member',
-                      style: YbText.body(size: 16, weight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      'Nama, level, dan area main. Kontak tidak pernah tampil.',
-                      style: YbText.body(size: 13, color: YbColors.muted),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 24),
-            YbSectionTitle('Tampilan'),
-            const SizedBox(height: 10),
-            YbSegmented<ThemeMode>(
-              options: const [
-                (ThemeMode.system, 'Sistem', Icons.phone_iphone),
-                (ThemeMode.light, 'Terang', Icons.light_mode_outlined),
-                (ThemeMode.dark, 'Gelap', Icons.dark_mode_outlined),
-              ],
-              selected: themeMode,
-              onChanged: (m) => ref.read(themeModeProvider.notifier).set(m),
-            ),
-            const SizedBox(height: 28),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                foregroundColor: YbColors.error,
-                side: BorderSide(color: YbColors.line),
-              ),
-              onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Keluar dari YukBadmin?'),
-                    content: const Text(
-                      'PB, toko, dan simpananmu tetap ada di HP ini. Semuanya muncul lagi saat kamu masuk dengan akun yang sama.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Batal'),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: YbColors.error,
-                        ),
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Keluar'),
-                      ),
-                    ],
-                  ),
-                );
-                if (ok != true) return;
-                // Data tiap akun disimpan terpisah, jadi akun berikutnya tetap
-                // mulai bersih tanpa menghapus apa pun.
-                ref.read(sessionProvider.notifier).signOut();
-              },
-              icon: const Icon(Icons.logout, size: 20),
-              label: const Text('Keluar'),
             ),
           ],
         ),

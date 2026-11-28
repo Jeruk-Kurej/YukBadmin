@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../core/widgets/yb_brand.dart';
 import '../../core/widgets/yb_widgets.dart';
 import '../manage/pages/manage_widgets.dart' show LabeledField, PageHeader;
 import '../pb/state/providers.dart';
@@ -116,23 +117,18 @@ class _HeroContent extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: YbColors.accent,
-                    borderRadius: BorderRadius.circular(YbRadius.md),
-                  ),
-                  child: Icon(
-                    Icons.sports_tennis,
-                    size: 36,
-                    color: YbColors.onAccent,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const YbLogoMark(width: 96, onDark: true),
+                const SizedBox(height: 12),
                 Text(
                   'YukBadmin',
                   style: YbText.display(size: 46, color: Colors.white),
+                ),
+                Text(
+                  'Play. Connect. Grow.',
+                  style: YbText.body(
+                    size: 15,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
